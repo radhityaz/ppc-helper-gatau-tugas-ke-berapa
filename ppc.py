@@ -656,17 +656,6 @@ def selesaikan_masalah_3():
     st.latex(r"RU_t \geq WF_t - WF_{t-1} \quad \forall t=1,...,T")
     st.latex(r"RD_t \geq WF_{t-1} - WF_t \quad \forall t=1,...,T")
     
-    st.write("dimana:")
-    st.write("- $R_t$ = Produksi regular time pada periode $t$")
-    st.write("- $O_t$ = Produksi overtime pada periode $t$")
-    st.write("- $I_t$ = Inventori di akhir periode $t$")
-    st.write("- $D_t$ = Permintaan pada periode $t$")
-    st.write("- $WF_t$ = Tingkat tenaga kerja pada periode $t$")
-    st.write("- $RU_t$ = Peningkatan tenaga kerja (ramping up) pada periode $t$")
-    st.write("- $RD_t$ = Pengurangan tenaga kerja (ramping down) pada periode $t$")
-    st.write("- $S_t$ = Setup produksi pada periode $t$")
-    st.write("- $C_r, C_o, C_i, C_{ru}, C_{rd}, C_s$ = Biaya terkait")
-    
     with st.expander("Data Permintaan & Parameter", expanded=True):
         # Tabel permintaan default
         permintaan_default = {
@@ -711,155 +700,326 @@ def selesaikan_masalah_3():
         reg_hours = col1.number_input("Jam Kerja Regular (jam/hari)", value=8, step=1)
         ot_hours = col2.number_input("Jam Kerja Overtime (jam/hari)", value=2, step=1)
         work_days = col3.number_input("Hari Kerja per Minggu", value=5, step=1)
+        
+        # Pilihan metode
+        solution_method = st.radio(
+            "Pilih Metode Penyelesaian:",
+            ["Basic (Trial and Error)", "Advanced (Linear Programming)"]
+        )
     
     # Tombol untuk menjalankan perhitungan
     if st.button("Selesaikan Masalah 3"):
         with st.spinner("Menghitung perencanaan agregat..."):
-            # Ambil data dari editor
-            permintaan_vanila = edited_df['Vanila'].tolist()
-            permintaan_coklat = edited_df['Coklat'].tolist()
-            permintaan_stroberi = edited_df['Stroberi'].tolist()
-            
-            # Hitung jam kerja tersedia per minggu
-            regular_hours_per_week = reg_hours * work_days
-            overtime_hours_per_week = ot_hours * work_days
-            total_hours_per_week = regular_hours_per_week + overtime_hours_per_week
-            
-            # Konversi permintaan ke jam produksi
-            jam_vanila = [d / fill_vanila for d in permintaan_vanila]
-            jam_coklat = [d / fill_coklat for d in permintaan_coklat]
-            jam_stroberi = [d / fill_stroberi for d in permintaan_stroberi]
-            
-            # Total jam produksi yang dibutuhkan per minggu
-            total_jam = [v + c + s for v, c, s in zip(jam_vanila, jam_coklat, jam_stroberi)]
-            
-            # Perencanaan dengan mixed strategy (trial and error)
-            # Pendekatan: Gunakan regular time dulu, lalu overtime, lalu adjust dengan persediaan
-            
-            regular_used = []
-            overtime_used = []
-            inventory = [0]  # Mulai dengan persediaan 0
-            backlog = [0]    # Backlog awal 0
-            
-            # Strategi mixed
-            for i, jam in enumerate(total_jam):
-                # Jam yang tersedia di minggu ini
-                available_reg = regular_hours_per_week
-                available_ot = overtime_hours_per_week
+            # Fungsi perencanaan agregat metode advanced (Linear Programming)
+            def perencanaan_agregat_advanced():
+                try:
+                    import pulp as pl
+                except ImportError:
+                    st.error("Library PuLP tidak ditemukan. Silakan install dengan 'pip install pulp' atau gunakan metode Basic.")
+                    return None
                 
-                # Inventori dari minggu sebelumnya
-                prev_inv = inventory[-1]
-                prev_backlog = backlog[-1]
+                # Ambil data dari editor
+                permintaan_vanila = edited_df['Vanila'].tolist()
+                permintaan_coklat = edited_df['Coklat'].tolist()
+                permintaan_stroberi = edited_df['Stroberi'].tolist()
                 
-                # Kebutuhan produksi setelah memperhitungkan inventori dan backlog
-                net_req = jam + prev_backlog - prev_inv
+                # Hitung jam kerja tersedia per minggu
+                regular_hours_per_week = reg_hours * work_days
+                overtime_hours_per_week = ot_hours * work_days
                 
-                if net_req <= 0:
-                    # Terlalu banyak inventori, tidak perlu produksi
-                    reg_used = 0
-                    ot_used = 0
-                    curr_inv = abs(net_req)
-                    curr_backlog = 0
-                elif net_req <= available_reg:
-                    # Cukup dengan regular time
-                    reg_used = net_req
-                    ot_used = 0
-                    curr_inv = 0
-                    curr_backlog = 0
-                elif net_req <= available_reg + available_ot:
-                    # Perlu regular + sebagian overtime
-                    reg_used = available_reg
-                    ot_used = net_req - available_reg
-                    curr_inv = 0
-                    curr_backlog = 0
-                else:
-                    # Gunakan semua kapasitas + backlog
-                    reg_used = available_reg
-                    ot_used = available_ot
-                    curr_inv = 0
-                    curr_backlog = net_req - (available_reg + available_ot)
+                # Konversi permintaan ke jam produksi
+                jam_vanila = [d / fill_vanila for d in permintaan_vanila]
+                jam_coklat = [d / fill_coklat for d in permintaan_coklat]
+                jam_stroberi = [d / fill_stroberi for d in permintaan_stroberi]
                 
-                regular_used.append(reg_used)
-                overtime_used.append(ot_used)
-                inventory.append(curr_inv)
-                backlog.append(curr_backlog)
-            
-            # Hapus inventori awal dan tambahkan inventori akhir
-            inventory = inventory[1:]
-            backlog = backlog[1:]
-            
-            # Hitung biaya-biaya
-            # 1. Biaya regular time
-            regular_cost = sum(regular_used) * reg_cost
-            
-            # 2. Biaya overtime
-            overtime_cost = sum(overtime_used) * ot_cost
-            
-            # 3. Biaya inventory
-            inventory_cost = sum(inventory) * inv_cost
-            
-            # 4. Biaya ramping (perubahan level produksi)
-            ramping_cost = 0
-            for i in range(1, len(regular_used)):
-                if regular_used[i] > regular_used[i-1]:
-                    # Ramping up
-                    ramping_cost += (regular_used[i] - regular_used[i-1]) * ramp_up
-                else:
-                    # Ramping down
-                    ramping_cost += (regular_used[i-1] - regular_used[i]) * ramp_down
-            
-            # 5. Biaya setup (diasumsikan setup sekali per minggu untuk tiap jenis)
-            # Jika ada produksi minimal 1 jam, ada setup
-            setup_cost = 0
-            for i in range(len(permintaan_vanila)):
-                if jam_vanila[i] > 0:
-                    setup_cost += setup_vanila
-                if jam_coklat[i] > 0:
-                    setup_cost += setup_coklat
-                if jam_stroberi[i] > 0:
-                    setup_cost += setup_stroberi
-            
-            # Total biaya
-            total_biaya = regular_cost + overtime_cost + inventory_cost + ramping_cost + setup_cost
-            
-            # Simpan hasil dalam kamus untuk interpretasi
-            hasil = {
-                'total_biaya': total_biaya,
-                'rincian_produksi': {
-                    'regular_hours': regular_used,
-                    'overtime_hours': overtime_used,
-                    'total_required_hours': total_jam
-                },
-                'persediaan': inventory,
-                'backlog': backlog,
-                'biaya_komponen': {
-                    'regular_cost': regular_cost,
-                    'overtime_cost': overtime_cost,
-                    'inventory_cost': inventory_cost,
-                    'ramping_cost': ramping_cost,
-                    'setup_cost': setup_cost
+                # Total jam produksi yang dibutuhkan per minggu
+                total_jam = [v + c + s for v, c, s in zip(jam_vanila, jam_coklat, jam_stroberi)]
+                
+                # Paramater model
+                weeks = range(len(total_jam))
+                
+                # Buat model LP
+                model = pl.LpProblem("Aggregate_Planning", pl.LpMinimize)
+                
+                # Variabel keputusan
+                reg_prod = {w: pl.LpVariable(f"RegularProduction_{w}", lowBound=0) for w in weeks}
+                ot_prod = {w: pl.LpVariable(f"OvertimeProduction_{w}", lowBound=0) for w in weeks}
+                inventory = {w: pl.LpVariable(f"Inventory_{w}", lowBound=0) for w in weeks}
+                backlog = {w: pl.LpVariable(f"Backlog_{w}", lowBound=0) for w in weeks}
+                
+                # Variabel untuk ramping
+                ramp_up_var = {w: pl.LpVariable(f"RampUp_{w}", lowBound=0) for w in weeks[1:]}
+                ramp_down_var = {w: pl.LpVariable(f"RampDown_{w}", lowBound=0) for w in weeks[1:]}
+                
+                # Variabel setup (biner)
+                setup_v = {w: pl.LpVariable(f"SetupVanilla_{w}", cat=pl.LpBinary) for w in weeks}
+                setup_c = {w: pl.LpVariable(f"SetupChocolate_{w}", cat=pl.LpBinary) for w in weeks}
+                setup_s = {w: pl.LpVariable(f"SetupStrawberry_{w}", cat=pl.LpBinary) for w in weeks}
+                
+                # Fungsi tujuan: minimasi total biaya
+                model += (
+                    pl.lpSum([reg_prod[w] * reg_cost for w in weeks]) +  # Regular production cost
+                    pl.lpSum([ot_prod[w] * ot_cost for w in weeks]) +    # Overtime production cost
+                    pl.lpSum([inventory[w] * inv_cost for w in weeks]) + # Inventory holding cost
+                    pl.lpSum([ramp_up_var[w] * ramp_up for w in weeks[1:]]) +  # Ramping up cost
+                    pl.lpSum([ramp_down_var[w] * ramp_down for w in weeks[1:]]) +  # Ramping down cost
+                    pl.lpSum([setup_v[w] * setup_vanila for w in weeks]) +  # Setup cost vanilla
+                    pl.lpSum([setup_c[w] * setup_coklat for w in weeks]) +  # Setup cost chocolate
+                    pl.lpSum([setup_s[w] * setup_stroberi for w in weeks])  # Setup cost strawberry
+                )
+                
+                # Batasan kapasitas
+                for w in weeks:
+                    model += reg_prod[w] <= regular_hours_per_week  # Regular capacity constraint
+                    model += ot_prod[w] <= overtime_hours_per_week  # Overtime capacity constraint
+                
+                # Batasan keseimbangan inventori
+                for w in weeks:
+                    if w == 0:
+                        # Minggu pertama tidak ada inventori dan backlog awal
+                        model += reg_prod[w] + ot_prod[w] - inventory[w] + backlog[w] == total_jam[w]
+                    else:
+                        # Minggu berikutnya memperhitungkan inventori dan backlog dari minggu sebelumnya
+                        model += reg_prod[w] + ot_prod[w] + inventory[w-1] - inventory[w] - backlog[w-1] + backlog[w] == total_jam[w]
+                
+                # Batasan ramping up/down
+                for w in weeks[1:]:
+                    model += ramp_up_var[w] - ramp_down_var[w] == reg_prod[w] - reg_prod[w-1]  # Definisi ramping
+                
+                # Batasan setup - M adalah angka yang cukup besar (Big-M method)
+                M = max(jam_vanila + jam_coklat + jam_stroberi) * 10
+                for w in weeks:
+                    if jam_vanila[w] > 0:
+                        model += jam_vanila[w] <= M * setup_v[w]  # Jika ada produksi vanilla, setup = 1
+                    if jam_coklat[w] > 0:
+                        model += jam_coklat[w] <= M * setup_c[w]  # Jika ada produksi coklat, setup = 1
+                    if jam_stroberi[w] > 0:
+                        model += jam_stroberi[w] <= M * setup_s[w]  # Jika ada produksi stroberi, setup = 1
+                
+                # Selesaikan model
+                model.solve(pl.PULP_CBC_CMD(msg=False))
+                
+                if pl.LpStatus[model.status] != 'Optimal':
+                    st.warning(f"Solver tidak menemukan solusi optimal. Status: {pl.LpStatus[model.status]}")
+                    return None
+                
+                # Ekstrak hasil
+                regular_used = [pl.value(reg_prod[w]) for w in weeks]
+                overtime_used = [pl.value(ot_prod[w]) for w in weeks]
+                inventory_levels = [pl.value(inventory[w]) for w in weeks]
+                backlog_levels = [pl.value(backlog[w]) for w in weeks]
+                
+                # Hitung komponen biaya
+                regular_cost = sum(regular_used) * reg_cost
+                overtime_cost = sum(overtime_used) * ot_cost
+                inventory_cost = sum(inventory_levels) * inv_cost
+                
+                ramping_cost = sum(pl.value(ramp_up_var[w]) * ramp_up + 
+                                pl.value(ramp_down_var[w]) * ramp_down 
+                                for w in weeks[1:])
+                    
+                setup_cost = sum(pl.value(setup_v[w]) * setup_vanila +
+                                pl.value(setup_c[w]) * setup_coklat +
+                                pl.value(setup_s[w]) * setup_stroberi 
+                                for w in weeks)
+                
+                # Total biaya
+                total_biaya = regular_cost + overtime_cost + inventory_cost + ramping_cost + setup_cost
+                
+                return {
+                    'total_biaya': total_biaya,
+                    'rincian_produksi': {
+                        'regular_hours': regular_used,
+                        'overtime_hours': overtime_used,
+                        'total_required_hours': total_jam
+                    },
+                    'persediaan': inventory_levels,
+                    'backlog': backlog_levels,
+                    'biaya_komponen': {
+                        'regular_cost': regular_cost,
+                        'overtime_cost': overtime_cost,
+                        'inventory_cost': inventory_cost,
+                        'ramping_cost': ramping_cost,
+                        'setup_cost': setup_cost
+                    },
+                    'status': pl.LpStatus[model.status]
                 }
-            }
+            
+            # Fungsi perencanaan agregat metode basic (Trial and Error)
+            def perencanaan_agregat_basic():
+                # Ambil data dari editor
+                permintaan_vanila = edited_df['Vanila'].tolist()
+                permintaan_coklat = edited_df['Coklat'].tolist()
+                permintaan_stroberi = edited_df['Stroberi'].tolist()
+                
+                # Hitung jam kerja tersedia per minggu
+                regular_hours_per_week = reg_hours * work_days
+                overtime_hours_per_week = ot_hours * work_days
+                total_hours_per_week = regular_hours_per_week + overtime_hours_per_week
+                
+                # Konversi permintaan ke jam produksi
+                jam_vanila = [d / fill_vanila for d in permintaan_vanila]
+                jam_coklat = [d / fill_coklat for d in permintaan_coklat]
+                jam_stroberi = [d / fill_stroberi for d in permintaan_stroberi]
+                
+                # Total jam produksi yang dibutuhkan per minggu
+                total_jam = [v + c + s for v, c, s in zip(jam_vanila, jam_coklat, jam_stroberi)]
+                
+                # Inisialisasi variabel tracking
+                regular_used = []
+                overtime_used = []
+                inventory = [0]  # Mulai dengan persediaan 0
+                backlog = [0]    # Backlog awal 0
+                
+                # Strategi mixed - pendekatan yang ditingkatkan
+                for i, jam in enumerate(total_jam):
+                    # Jam yang tersedia di minggu ini
+                    available_reg = regular_hours_per_week
+                    available_ot = overtime_hours_per_week
+                    
+                    # Inventori dari minggu sebelumnya
+                    prev_inv = inventory[-1]
+                    prev_backlog = backlog[-1]
+                    
+                    # Kebutuhan produksi setelah memperhitungkan inventori dan backlog
+                    net_req = jam + prev_backlog - prev_inv
+                    
+                    # Perbaikan strategi mixed untuk lebih mengoptimalkan biaya
+                    # Kita akan coba lebih "look-ahead" dengan melihat kebutuhan 2 minggu ke depan
+                    # Jika minggu depan kebutuhan lebih tinggi, kita akan produksi lebih banyak sekarang
+                    # untuk mengurangi overtime di masa depan
+                    if i < len(total_jam) - 1 and total_jam[i+1] > total_jam[i] and net_req < available_reg:
+                        # Ada kapasitas ekstra dan minggu depan lebih tinggi
+                        future_need = min(total_jam[i+1], available_reg - net_req)
+                        extra_prod = min(future_need, available_reg - net_req)
+                        
+                        # Tapi jangan terlalu banyak extra jika biaya inventori mahal
+                        if inv_cost < ot_cost * 0.5:  # Heuristik: Jika inv cost < 50% overtime cost
+                            extra_prod = max(0, extra_prod)
+                        else:
+                            extra_prod = 0
+                    else:
+                        extra_prod = 0
+                    
+                    if net_req <= 0:
+                        # Persediaan berlebih, tidak perlu produksi
+                        reg_used = 0
+                        ot_used = 0
+                        curr_inv = abs(net_req)
+                        curr_backlog = 0
+                    elif net_req <= available_reg:
+                        # Cukup dengan regular time + mungkin extra untuk future
+                        reg_used = net_req + extra_prod
+                        ot_used = 0
+                        curr_inv = extra_prod
+                        curr_backlog = 0
+                    elif net_req <= available_reg + available_ot:
+                        # Perlu regular + sebagian overtime
+                        reg_used = available_reg
+                        ot_used = net_req - available_reg
+                        curr_inv = 0
+                        curr_backlog = 0
+                    else:
+                        # Gunakan semua kapasitas + backlog
+                        reg_used = available_reg
+                        ot_used = available_ot
+                        curr_inv = 0
+                        curr_backlog = net_req - (available_reg + available_ot)
+                    
+                    regular_used.append(reg_used)
+                    overtime_used.append(ot_used)
+                    inventory.append(curr_inv)
+                    backlog.append(curr_backlog)
+                
+                # Hapus inventori dan backlog awal
+                inventory = inventory[1:]
+                backlog = backlog[1:]
+                
+                # Hitung biaya-biaya
+                # 1. Biaya regular time
+                regular_cost = sum(regular_used) * reg_cost
+                
+                # 2. Biaya overtime
+                overtime_cost = sum(overtime_used) * ot_cost
+                
+                # 3. Biaya inventory
+                inventory_cost = sum(inventory) * inv_cost
+                
+                # 4. Biaya ramping (perubahan level produksi)
+                ramping_cost = 0
+                for i in range(1, len(regular_used)):
+                    if regular_used[i] > regular_used[i-1]:
+                        # Ramping up
+                        ramping_cost += (regular_used[i] - regular_used[i-1]) * ramp_up
+                    else:
+                        # Ramping down
+                        ramping_cost += (regular_used[i-1] - regular_used[i]) * ramp_down
+                
+                # 5. Biaya setup (diasumsikan setup sekali per minggu untuk tiap jenis)
+                # Jika ada produksi minimal 1 jam, ada setup
+                setup_cost = 0
+                for i in range(len(permintaan_vanila)):
+                    if jam_vanila[i] > 0:
+                        setup_cost += setup_vanila
+                    if jam_coklat[i] > 0:
+                        setup_cost += setup_coklat
+                    if jam_stroberi[i] > 0:
+                        setup_cost += setup_stroberi
+                
+                # Total biaya
+                total_biaya = regular_cost + overtime_cost + inventory_cost + ramping_cost + setup_cost
+                
+                return {
+                    'total_biaya': total_biaya,
+                    'rincian_produksi': {
+                        'regular_hours': regular_used,
+                        'overtime_hours': overtime_used,
+                        'total_required_hours': total_jam
+                    },
+                    'persediaan': inventory,
+                    'backlog': backlog,
+                    'biaya_komponen': {
+                        'regular_cost': regular_cost,
+                        'overtime_cost': overtime_cost,
+                        'inventory_cost': inventory_cost,
+                        'ramping_cost': ramping_cost,
+                        'setup_cost': setup_cost
+                    }
+                }
+            
+            # Pilih metode yang akan digunakan
+            if solution_method == "Advanced (Linear Programming)":
+                try:
+                    import pulp
+                    hasil = perencanaan_agregat_advanced()
+                    if hasil is None:  # Jika linear programming gagal
+                        st.warning("Metode Linear Programming gagal. Menggunakan metode Trial and Error sebagai fallback.")
+                        hasil = perencanaan_agregat_basic()
+                except ImportError:
+                    st.warning("Library PuLP tidak ditemukan. Menggunakan metode Trial and Error sebagai fallback.")
+                    hasil = perencanaan_agregat_basic()
+            else:
+                hasil = perencanaan_agregat_basic()
             
             # Tampilkan hasil
             st.subheader("Hasil Perencanaan Agregat")
             
             # Metrik ringkasan
             col1, col2, col3 = st.columns(3)
-            col1.metric("Total Biaya", f"Rp {total_biaya:.2f} Juta")
-            col2.metric("Total Jam Regular", f"{sum(regular_used):.2f} jam")
-            col3.metric("Total Jam Overtime", f"{sum(overtime_used):.2f} jam")
+            col1.metric("Total Biaya", f"Rp {hasil['total_biaya']:.2f} Juta")
+            col2.metric("Total Jam Regular", f"{sum(hasil['rincian_produksi']['regular_hours']):.2f} jam")
+            col3.metric("Total Jam Overtime", f"{sum(hasil['rincian_produksi']['overtime_hours']):.2f} jam")
             
             # Tabel perencanaan detail
             st.subheader("Rencana Produksi Mingguan")
             df_rencana = pd.DataFrame({
                 'Minggu': range(1, 7),
-                'Permintaan Total (kl)': [sum(x) for x in zip(permintaan_vanila, permintaan_coklat, permintaan_stroberi)],
-                'Kebutuhan Jam': total_jam,
-                'Jam Regular': regular_used,
-                'Jam Overtime': overtime_used,
-                'Inventori (jam)': inventory,
-                'Backlog (jam)': backlog
+                'Permintaan Total (kl)': [sum(x) for x in zip(edited_df['Vanila'], edited_df['Coklat'], edited_df['Stroberi'])],
+                'Kebutuhan Jam': hasil['rincian_produksi']['total_required_hours'],
+                'Jam Regular': hasil['rincian_produksi']['regular_hours'],
+                'Jam Overtime': hasil['rincian_produksi']['overtime_hours'],
+                'Inventori (jam)': hasil['persediaan'],
+                'Backlog (jam)': hasil['backlog']
             })
             st.dataframe(df_rencana)
             
@@ -868,12 +1028,12 @@ def selesaikan_masalah_3():
             fig, ax = plt.subplots(figsize=(12, 6))
             
             weeks = range(1, 7)
-            capacity_reg = [regular_hours_per_week] * 6
-            capacity_total = [regular_hours_per_week + overtime_hours_per_week] * 6
+            capacity_reg = [reg_hours * work_days] * 6
+            capacity_total = [reg_hours * work_days + ot_hours * work_days] * 6
             
-            ax.bar(weeks, total_jam, color='blue', alpha=0.7, label='Kebutuhan Jam')
-            ax.plot(weeks, capacity_reg, 'r--', linewidth=2, label=f'Kapasitas Regular ({regular_hours_per_week} jam)')
-            ax.plot(weeks, capacity_total, 'g--', linewidth=2, label=f'Kapasitas Total ({total_hours_per_week} jam)')
+            ax.bar(weeks, hasil['rincian_produksi']['total_required_hours'], color='blue', alpha=0.7, label='Kebutuhan Jam')
+            ax.plot(weeks, capacity_reg, 'r--', linewidth=2, label=f'Kapasitas Regular ({reg_hours * work_days} jam)')
+            ax.plot(weeks, capacity_total, 'g--', linewidth=2, label=f'Kapasitas Total ({reg_hours * work_days + ot_hours * work_days} jam)')
             
             ax.set_xlabel('Minggu')
             ax.set_ylabel('Jam')
@@ -883,25 +1043,50 @@ def selesaikan_masalah_3():
             
             st.pyplot(fig)
             
-            # Visualisasi inventori
-            st.subheader("Level Persediaan per Minggu")
+            # Visualisasi rencana produksi aktual
+            st.subheader("Rencana Produksi Aktual")
             fig, ax = plt.subplots(figsize=(12, 6))
             
-            ax.bar(weeks, inventory, color='green', alpha=0.7)
-            ax.set_xlabel('Minggu')
-            ax.set_ylabel('Persediaan (jam)')
-            ax.set_title('Level Persediaan per Minggu')
-            ax.grid(alpha=0.3)
+            # Plot kebutuhan jam
+            ax.bar(weeks, hasil['rincian_produksi']['total_required_hours'], color='blue', alpha=0.3, label='Kebutuhan Total')
             
+            # Plot jam regular
+            ax.bar(weeks, hasil['rincian_produksi']['regular_hours'], color='green', alpha=0.7, label='Regular Time')
+            
+            # Plot jam overtime (di atas regular)
+            bottom_ot = hasil['rincian_produksi']['regular_hours']
+            ax.bar(weeks, hasil['rincian_produksi']['overtime_hours'], bottom=bottom_ot, color='orange', alpha=0.7, label='Overtime')
+            
+            # Plot inventori sebagai garis
+            ax_inv = ax.twinx()
+            ax_inv.plot(weeks, hasil['persediaan'], 'r-o', linewidth=2, label='Inventori')
+            ax_inv.set_ylabel('Inventori (jam)', color='r')
+            
+            ax.set_xlabel('Minggu')
+            ax.set_ylabel('Jam Produksi')
+            ax.set_title('Rencana Produksi Aktual per Minggu')
+            
+            # Gabungkan legend dari kedua axis
+            lines1, labels1 = ax.get_legend_handles_labels()
+            lines2, labels2 = ax_inv.get_legend_handles_labels()
+            ax.legend(lines1 + lines2, labels1 + labels2, loc='upper left')
+            
+            ax.grid(alpha=0.3)
             st.pyplot(fig)
             
             # Visualisasi komponen biaya
             st.subheader("Komponen Biaya")
             biaya_labels = ['Regular', 'Overtime', 'Inventory', 'Ramping', 'Setup']
-            biaya_values = [regular_cost, overtime_cost, inventory_cost, ramping_cost, setup_cost]
+            biaya_values = [
+                hasil['biaya_komponen']['regular_cost'], 
+                hasil['biaya_komponen']['overtime_cost'],
+                hasil['biaya_komponen']['inventory_cost'],
+                hasil['biaya_komponen']['ramping_cost'],
+                hasil['biaya_komponen']['setup_cost']
+            ]
             
             fig, ax = plt.subplots(figsize=(10, 6))
-            ax.bar(biaya_labels, biaya_values, color=['blue', 'orange', 'green', 'red', 'purple'])
+            bars = ax.bar(biaya_labels, biaya_values, color=['blue', 'orange', 'green', 'red', 'purple'])
             
             # Tambahkan label nilai di atas setiap batang
             for i, v in enumerate(biaya_values):
@@ -927,15 +1112,19 @@ def selesaikan_masalah_3():
             
             with col1:
                 # Metrik-metrik utama
-                st.metric("Utilisasi Kapasitas Regular", f"{sum(regular_used) / (regular_hours_per_week * 6) * 100:.1f}%")
-                st.metric("Utilisasi Kapasitas Total", f"{(sum(regular_used) + sum(overtime_used)) / (total_hours_per_week * 6) * 100:.1f}%")
-                st.metric("Rata-rata Inventori", f"{sum(inventory) / len(inventory):.2f} jam")
+                st.metric("Utilisasi Kapasitas Regular", 
+                          f"{sum(hasil['rincian_produksi']['regular_hours']) / (reg_hours * work_days * 6) * 100:.1f}%")
+                st.metric("Utilisasi Kapasitas Total", 
+                          f"{(sum(hasil['rincian_produksi']['regular_hours']) + sum(hasil['rincian_produksi']['overtime_hours'])) / ((reg_hours + ot_hours) * work_days * 6) * 100:.1f}%")
+                st.metric("Rata-rata Inventori", f"{sum(hasil['persediaan']) / len(hasil['persediaan']):.2f} jam")
             
             with col2:
                 # Metrik lain
-                st.metric("Biaya per Unit", f"Rp {total_biaya / sum([sum(x) for x in zip(permintaan_vanila, permintaan_coklat, permintaan_stroberi)]):.2f} Juta/kl")
-                st.metric("Backlog Maksimum", f"{max(backlog):.2f} jam")
-                st.metric("Minggu dengan Kebutuhan Tertinggi", f"Minggu {total_jam.index(max(total_jam))+1} ({max(total_jam):.2f} jam)")
+                total_produksi = sum([sum(x) for x in zip(edited_df['Vanila'], edited_df['Coklat'], edited_df['Stroberi'])])
+                st.metric("Biaya per Unit", f"Rp {hasil['total_biaya'] / total_produksi:.2f} Juta/kl")
+                st.metric("Backlog Maksimum", f"{max(hasil['backlog']):.2f} jam")
+                st.metric("Minggu dengan Kebutuhan Tertinggi", 
+                          f"Minggu {hasil['rincian_produksi']['total_required_hours'].index(max(hasil['rincian_produksi']['total_required_hours']))+1} ({max(hasil['rincian_produksi']['total_required_hours']):.2f} jam)")
             
             # Interpretasi dengan API
             st.subheader("Interpretasi Perencanaan Agregat")
@@ -944,7 +1133,21 @@ def selesaikan_masalah_3():
                     st.markdown(interpretasi_perencanaan_agregat(model, hasil))
                 else:
                     st.warning("API Key belum dimasukkan atau gagal terhubung.")
-
+            
+            # Perbedaan antara basic dan advanced (jika menggunakan advanced)
+            if solution_method == "Advanced (Linear Programming)":
+                st.subheader("Mengapa Linear Programming Lebih Baik?")
+                st.write("""
+                Linear Programming memberikan solusi yang optimal secara global dengan mempertimbangkan seluruh horizon perencanaan sekaligus. 
+                Beberapa keunggulan termasuk:
+                
+                1. **Optimasi Global**: Mempertimbangkan semua periode sekaligus, bukan hanya keputusan lokal per minggu
+                2. **Keseimbangan Biaya**: Secara matematis menyeimbangkan semua komponen biaya (produksi, inventori, setup, ramping)
+                3. **Look-ahead Capability**: Secara otomatis memperhitungkan permintaan masa depan dalam keputusan saat ini
+                4. **Batching Optimal**: Menentukan kapan batching produksi (memproduksi lebih untuk inventori) lebih ekonomis
+                
+                Metode ini umumnya menghasilkan penghematan 5-15% dibandingkan pendekatan heuristik seperti trial-and-error.
+                """)
 # Masalah 4: Jadwal Produksi Induk
 # Masalah 4: Jadwal Produksi Induk (MPS) dengan Metode Bitran Hax
 # Masalah 4: Jadwal Produksi Induk (MPS) dengan Metode Bitran Hax
