@@ -6,6 +6,7 @@ import seaborn as sns
 import google.generativeai as genai
 from matplotlib.ticker import MaxNLocator
 import logging
+import networkx
 
 logging.basicConfig(level=logging.ERROR)
 
