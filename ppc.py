@@ -6,7 +6,7 @@ import seaborn as sns
 import google.generativeai as genai
 from matplotlib.ticker import MaxNLocator
 import logging
-
+import networkx as nx
 
 logging.basicConfig(level=logging.ERROR)
 
@@ -1450,7 +1450,7 @@ def selesaikan_masalah_5():
     st.subheader("Visualisasi Diagram Jaringan")
     
     # Membuat diagram jaringan secara manual
-    import networkx as nx
+
     
     G = nx.DiGraph()
     
