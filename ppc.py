@@ -24,7 +24,7 @@ plt.rcParams['font.family'] = 'DejaVu Sans'
 def inisialisasi_gemini(api_key):
     try:
         genai.configure(api_key=api_key)
-        return genai.GenerativeModel('gemini-pro')
+        return genai.GenerativeModel('gemini-2.0-flash')
     except Exception as e:
         logging.error(f"Gagal menginisialisasi API Gemini: {e}")
         raise
@@ -445,6 +445,27 @@ def main():
                 col1.metric("SES α", f"{p1_hasil['hasil']['SES']['alpha_terbaik']:.1f}")
                 col2.metric("DES α", f"{p1_hasil['hasil']['DES']['alpha_terbaik']:.1f}")
                 col3.metric("DES β", f"{p1_hasil['hasil']['DES']['beta_terbaik']:.1f}")
+                
+                # Tambahkan rumus matematika
+                st.subheader("Rumus Peramalan")
+                st.write("**Single Exponential Smoothing (SES)**")
+                st.latex(r"F_{t+1} = \alpha Y_t + (1-\alpha)F_t")
+                st.write("dimana:")
+                st.write("- $F_{t+1}$ adalah ramalan untuk periode $t+1$")
+                st.write("- $Y_t$ adalah nilai aktual pada periode $t$")
+                st.write("- $F_t$ adalah ramalan untuk periode $t$")
+                st.write("- $\\alpha$ adalah parameter penghalusan (0 < $\\alpha$ < 1)")
+                
+                st.write("**Double Exponential Smoothing (DES)**")
+                st.latex(r"S_t = \alpha Y_t + (1-\alpha)(S_{t-1} + T_{t-1})")
+                st.latex(r"T_t = \beta(S_t - S_{t-1}) + (1-\beta)T_{t-1}")
+                st.latex(r"F_{t+1} = S_t + T_t")
+                st.write("dimana:")
+                st.write("- $S_t$ adalah nilai level pada periode $t$")
+                st.write("- $T_t$ adalah nilai trend pada periode $t$")
+                st.write("- $F_{t+1}$ adalah ramalan untuk periode $t+1$")
+                st.write("- $Y_t$ adalah nilai aktual pada periode $t$")
+                st.write("- $\\alpha$ dan $\\beta$ adalah parameter penghalusan (0 < $\\alpha,\\beta$ < 1)")
 
                 # 3. Plot data penjualan
                 st.subheader("Visualisasi Data Penjualan")
@@ -654,9 +675,18 @@ def main():
 
                 # Interpretasi peramalan masa depan
                 st.subheader("Interpretasi Peramalan Masa Depan")
+                # Konversi ke list jika belum berbentuk list
+                ramalan_ses_depan = p1_hasil['ramalan_ses_depan']
+                ramalan_des_depan = p1_hasil['ramalan_des_depan']
+                
+                if hasattr(ramalan_ses_depan, 'tolist'):
+                    ramalan_ses_depan = ramalan_ses_depan.tolist()
+                if hasattr(ramalan_des_depan, 'tolist'):
+                    ramalan_des_depan = ramalan_des_depan.tolist()
+                
                 deskripsi_masa_depan_ai = {
-                    "ramalan_ses_depan": p1_hasil['ramalan_ses_depan'].tolist(),
-                    "ramalan_des_depan": p1_hasil['ramalan_des_depan'].tolist(),
+                    "ramalan_ses_depan": ramalan_ses_depan,
+                    "ramalan_des_depan": ramalan_des_depan,
                     "metode_lebih_baik": p1_hasil['metode_lebih_baik'],
                     "penjualan_aktual_terakhir": data_penjualan['Penjualan'].tolist()[-3:]
                 }
@@ -767,6 +797,15 @@ def main():
                 # Interpretasi akhir dengan AI
                 st.subheader("Rekomendasi Akhir")
 
+                # Konversi ke list jika belum berbentuk list
+                ramalan_ses_depan = p1_hasil['ramalan_ses_depan']
+                ramalan_des_depan = p1_hasil['ramalan_des_depan']
+                
+                if hasattr(ramalan_ses_depan, 'tolist'):
+                    ramalan_ses_depan = ramalan_ses_depan.tolist()
+                if hasattr(ramalan_des_depan, 'tolist'):
+                    ramalan_des_depan = ramalan_des_depan.tolist()
+                
                 deskripsi_akhir_ai = {
                     "nim": nim,
                     "metrik_evaluasi": p1_hasil['metode_evaluasi'],
@@ -777,8 +816,8 @@ def main():
                         "beta_des": p1_hasil['hasil']['DES']['beta_terbaik']
                     },
                     "ramalan_masa_depan": {
-                        "ses": p1_hasil['ramalan_ses_depan'].tolist(),
-                        "des": p1_hasil['ramalan_des_depan'].tolist()
+                        "ses": ramalan_ses_depan,
+                        "des": ramalan_des_depan
                     }
                 }
 
