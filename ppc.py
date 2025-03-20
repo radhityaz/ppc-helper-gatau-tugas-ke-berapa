@@ -777,8 +777,8 @@ def main():
                         "beta_des": p1_hasil['hasil']['DES']['beta_terbaik']
                     },
                     "ramalan_masa_depan": {
-                        "ses": p1_hasil['ramalan_masa_depan']['ses'],
-                        "des": p1_hasil['ramalan_masa_depan']['des']
+                        "ses": p1_hasil['ramalan_ses_depan'].tolist(),
+                        "des": p1_hasil['ramalan_des_depan'].tolist()
                     }
                 }
 
