@@ -300,8 +300,8 @@ def selesaikan_masalah_1(nim, data_penjualan):
         }
 
         semua_hasil = {
-            'SES': {'alpha_list':0, 'metrik_list':float('inf')},
-            'DES': {'alpha_list':0, 'beta_list':0, 'metrik_list': float('inf')}}
+            'SES': {'alpha_list':[], 'metrik_list':[]},
+            'DES': {'alpha_list':[], 'beta_list':[], 'metrik_list': []}}
 
         # Grid search untuk SES
         for alpha in alpha_list:
