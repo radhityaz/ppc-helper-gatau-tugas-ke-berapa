@@ -366,28 +366,1519 @@ def selesaikan_masalah_1(nim, data_penjualan):
     }
 
 # Masalah 2: Metode Winter
+# Masalah 2: Metode Winter
 def selesaikan_masalah_2():
     st.header("Masalah 2: Metode Winter")
-    st.info("Implementasi untuk Metode Winter akan ditambahkan di sini.")
-    # Di sini Anda akan menambahkan logika dan UI untuk Metode Winter
+    
+    # Fungsi interpretasi khusus untuk Winter's Method
+    def interpretasi_winter_method(model, hasil):
+        if not model:
+            return "Interpretasi AI tidak tersedia."
+            
+        prompt = f"""
+        Saya telah menganalisis data permintaan musiman menggunakan Metode Winter (Triple Exponential Smoothing).
+        
+        Hasil analisis:
+        - Faktor musiman: {hasil['faktor_musiman']}
+        - Level yang diperbarui: {hasil['level']}
+        - Trend yang diperbarui: {hasil['trend']}
+        - Peramalan untuk kuartal berikutnya: {hasil['ramalan']}
+        
+        Berikan interpretasi yang ringkas dan profesional dalam 3-5 poin utama dalam bahasa Indonesia.
+        Fokus pada:
+        - Pengaruh faktor musiman terhadap permintaan
+        - Dampak lonjakan permintaan terhadap perkiraan masa depan
+        - Implikasi bisnis dari hasil peramalan
+        """
+        
+        try:
+            response = model.generate_content(prompt)
+            return response.text
+        except Exception as e:
+            logging.error(f"Error menghasilkan interpretasi Winter Method: {e}")
+            return f"Error menghasilkan interpretasi: {e}"
+    
+    # UI dan Implementasi untuk Winter's Method
+    with st.expander("Parameter Input", expanded=True):
+        col1, col2 = st.columns(2)
+        with col1:
+            nim = st.text_input("Masukkan NIM (Masalah 2)", "13423125")
+            
+            # Hitung x berdasarkan NIM
+            digit = [int(d) for d in nim[-3:]]
+            x = sum(digit)
+            st.info(f"Nilai x berdasarkan NIM: {x}")
+            
+        with col2:
+            # Parameter penghalusan
+            alpha = st.slider("Parameter α (Level)", 0.0, 1.0, 0.25, 0.01)
+            beta = st.slider("Parameter β (Trend)", 0.0, 1.0, 0.12, 0.01)
+            gamma = st.slider("Parameter γ (Seasonal)", 0.0, 1.0, 0.08, 0.01)
+        
+        # Input data permintaan
+        st.subheader("Data Permintaan Kuartalan")
+        col1, col2, col3, col4 = st.columns(4)
+        
+        # Tahun 2
+        st.write("Tahun 2")
+        t2q1 = col1.number_input("Q1 Tahun 2", value=14*x, step=1.0)
+        t2q2 = col2.number_input("Q2 Tahun 2", value=28*x, step=1.0)
+        t2q3 = col3.number_input("Q3 Tahun 2", value=65*x, step=1.0)
+        t2q4 = col4.number_input("Q4 Tahun 2", value=50*x, step=1.0)
+        
+        # Tahun 3
+        st.write("Tahun 3")
+        t3q1 = col1.number_input("Q1 Tahun 3", value=20*x, step=1.0)
+        t3q2 = col2.number_input("Q2 Tahun 3", value=40*x, step=1.0)
+        t3q3 = col3.number_input("Q3 Tahun 3", value=80*x, step=1.0)
+        t3q4 = col4.number_input("Q4 Tahun 3", value=55*x, step=1.0)
+        
+        # Lonjakan Q1 Tahun 4
+        st.write("Tahun 4")
+        t4q1 = st.number_input("Lonjakan Q1 Tahun 4", value=275, step=1.0)
+    
+    # Tambahkan rumus matematika Winter's Method
+    st.subheader("Rumus Winter's Method (Triple Exponential Smoothing)")
+    st.write("Winter's Method menggunakan tiga persamaan penghalusan untuk level, trend, dan faktor musiman:")
+    
+    # Level
+    st.latex(r"S_t = \alpha \frac{Y_t}{I_{t-L}} + (1-\alpha)(S_{t-1} + T_{t-1})")
+    # Trend
+    st.latex(r"T_t = \beta(S_t - S_{t-1}) + (1-\beta)T_{t-1}")
+    # Seasonal
+    st.latex(r"I_t = \gamma\frac{Y_t}{S_t} + (1-\gamma)I_{t-L}")
+    # Forecast
+    st.latex(r"F_{t+m} = (S_t + mT_t)I_{t-L+m}")
+    
+    st.write("dimana:")
+    st.write("- $S_t$ adalah komponen level pada waktu $t$")
+    st.write("- $T_t$ adalah komponen trend pada waktu $t$")
+    st.write("- $I_t$ adalah indeks musiman pada waktu $t$")
+    st.write("- $Y_t$ adalah nilai aktual pada waktu $t$")
+    st.write("- $F_{t+m}$ adalah peramalan untuk $m$ periode ke depan")
+    st.write("- $L$ adalah panjang musiman (4 kuartal dalam kasus ini)")
+    st.write("- $\\alpha$, $\\beta$, $\\gamma$ adalah parameter penghalusan")
+    
+    # Tombol untuk menjalankan perhitungan
+    if st.button("Selesaikan Masalah 2"):
+        with st.spinner("Menghitung dengan Metode Winter..."):
+            # Implementasi Metode Winter
+            
+            # Membuat array data
+            data_tahun2 = [t2q1, t2q2, t2q3, t2q4]
+            data_tahun3 = [t3q1, t3q2, t3q3, t3q4]
+            
+            # Menghitung nilai awal
+            seasons = 4  # 4 kuartal per tahun
+            
+            # Menghitung nilai awal intercept dan slope (pendekatan regresi sederhana)
+            y_avg_year2 = sum(data_tahun2) / seasons
+            y_avg_year3 = sum(data_tahun3) / seasons
+            
+            intercept = y_avg_year2
+            slope = (y_avg_year3 - y_avg_year2) / seasons
+            
+            # Menghitung faktor musiman awal
+            seasonal_indices = []
+            
+            # Rata-rata per kuartal
+            for i in range(seasons):
+                seasonal_avg = (data_tahun2[i] + data_tahun3[i]) / 2
+                seasonal_indices.append(seasonal_avg / ((y_avg_year2 + y_avg_year3) / 2))
+            
+            # Normalisasi faktor musiman agar jumlahnya = seasons
+            sum_indices = sum(seasonal_indices)
+            normalized_indices = [idx * (seasons / sum_indices) for idx in seasonal_indices]
+            
+            # Data historis dan lonjakan
+            all_data = data_tahun2 + data_tahun3 + [t4q1]
+            
+            # Menghitung perbaruan setelah lonjakan Q1
+            l_t4q1 = alpha * (t4q1 / normalized_indices[0]) + (1 - alpha) * (intercept + slope)
+            b_t4q1 = beta * (l_t4q1 - intercept) + (1 - beta) * slope
+            s_t4q1 = gamma * (t4q1 / l_t4q1) + (1 - gamma) * normalized_indices[0]
+            
+            # Perbarui faktor musiman
+            updated_indices = normalized_indices.copy()
+            updated_indices[0] = s_t4q1
+            
+            # Peramalan untuk 3 kuartal berikutnya (Q2, Q3, Q4 Tahun 4)
+            forecasts = []
+            for m in range(1, 4):
+                idx = m % seasons
+                forecast = (l_t4q1 + m * b_t4q1) * updated_indices[idx]
+                forecasts.append(forecast)
+                
+            # Hasil untuk ditampilkan
+            hasil = {
+                'nilai_x': x,
+                'intercept_awal': intercept,
+                'slope_awal': slope,
+                'faktor_musiman': normalized_indices,
+                'level': l_t4q1,
+                'trend': b_t4q1,
+                'faktor_musiman_diperbarui': updated_indices,
+                'ramalan': forecasts
+            }
+            
+            # Tampilkan hasil
+            st.subheader("Komponen Model Awal")
+            col1, col2 = st.columns(2)
+            col1.metric("Intercept Awal", f"{intercept:.2f}")
+            col2.metric("Slope Awal", f"{slope:.2f}")
+            
+            # Tampilkan faktor musiman
+            st.subheader("Faktor Musiman Awal")
+            seasons_names = ["Q1", "Q2", "Q3", "Q4"]
+            df_musiman = pd.DataFrame({
+                'Kuartal': seasons_names,
+                'Faktor Musiman': normalized_indices
+            })
+            st.dataframe(df_musiman)
+            
+            # Plot faktor musiman awal
+            fig, ax = plt.subplots(figsize=(10, 6))
+            ax.bar(seasons_names, normalized_indices, color='skyblue')
+            ax.axhline(y=1.0, color='red', linestyle='--', label='Rata-rata')
+            ax.set_title('Faktor Musiman Awal', fontweight='bold')
+            ax.set_ylabel('Faktor')
+            ax.set_ylim(0, max(normalized_indices) * 1.2)
+            ax.legend()
+            st.pyplot(fig)
+            
+            # Tampilkan hasil perbaruan setelah lonjakan Q1
+            st.subheader("Hasil Perbaruan Setelah Lonjakan Q1 Tahun 4")
+            col1, col2, col3 = st.columns(3)
+            col1.metric("Level Diperbarui", f"{l_t4q1:.2f}")
+            col2.metric("Trend Diperbarui", f"{b_t4q1:.2f}")
+            col3.metric("Faktor Q1 Diperbarui", f"{s_t4q1:.2f}")
+            
+            # Tampilkan peramalan untuk Q2-Q4 Tahun 4
+            st.subheader("Peramalan Tahun 4")
+            df_ramalan = pd.DataFrame({
+                'Kuartal': ["Q2", "Q3", "Q4"],
+                'Peramalan': forecasts
+            })
+            st.dataframe(df_ramalan)
+            
+            # Plot data historis dan peramalan
+            fig, ax = plt.subplots(figsize=(12, 6))
+            
+            # Data quarters
+            all_quarters = ["T2Q1", "T2Q2", "T2Q3", "T2Q4", 
+                           "T3Q1", "T3Q2", "T3Q3", "T3Q4", 
+                           "T4Q1", "T4Q2", "T4Q3", "T4Q4"]
+            
+            all_values = all_data + forecasts
+            
+            # Warna berbeda untuk data historis, lonjakan, dan peramalan
+            colors = ['blue']*8 + ['red'] + ['green']*3
+            labels = ['Data Historis']*8 + ['Lonjakan']*1 + ['Peramalan']*3
+            
+            # Plot data
+            for i, (q, v, c, l) in enumerate(zip(all_quarters, all_values, colors, labels)):
+                if i == 0:
+                    ax.scatter(q, v, color=c, label='Data Historis')
+                elif i == 8:
+                    ax.scatter(q, v, color=c, label='Lonjakan')
+                elif i == 9:
+                    ax.scatter(q, v, color=c, label='Peramalan')
+                else:
+                    ax.scatter(q, v, color=c)
+            
+            # Garis untuk menghubungkan titik-titik
+            ax.plot(all_quarters[:9], all_values[:9], 'b-')
+            ax.plot(all_quarters[8:], all_values[8:], 'g--')
+            
+            # Tambahkan garis vertikal untuk memisahkan data historis dan peramalan
+            ax.axvline(x=8.5, color='black', linestyle='--', alpha=0.7)
+            
+            ax.set_title('Data Historis dan Peramalan', fontweight='bold')
+            ax.set_ylabel('Permintaan')
+            ax.set_xticks(range(len(all_quarters)))
+            ax.set_xticklabels(all_quarters, rotation=45)
+            ax.legend()
+            
+            st.pyplot(fig)
+            
+            # Interpretasi dengan API
+            st.subheader("Interpretasi Hasil Metode Winter")
+            with st.container():
+                if model:
+                    st.markdown(interpretasi_winter_method(model, hasil))
+                else:
+                    st.warning("API Key belum dimasukkan atau gagal terhubung.")
 
+# Masalah 3: Perencanaan Agregat
 # Masalah 3: Perencanaan Agregat
 def selesaikan_masalah_3():
     st.header("Masalah 3: Perencanaan Agregat")
-    st.info("Implementasi untuk Perencanaan Agregat akan ditambahkan di sini.")
-    # Di sini Anda akan menambahkan logika dan UI untuk Perencanaan Agregat
+    
+    # Fungsi interpretasi khusus untuk Perencanaan Agregat
+    def interpretasi_perencanaan_agregat(model, hasil):
+        if not model:
+            return "Interpretasi AI tidak tersedia."
+            
+        prompt = f"""
+        Saya telah melakukan perencanaan agregat untuk PT LScream menggunakan mixed strategy.
+        
+        Hasil analisis:
+        - Total biaya: {hasil['total_biaya']} juta Rupiah
+        - Rincian produksi: {hasil['rincian_produksi']}
+        - Persediaan: {hasil['persediaan']}
+        - Biaya per komponen: {hasil['biaya_komponen']}
+        
+        Berikan interpretasi yang ringkas dan profesional dalam 3-5 poin utama dalam bahasa Indonesia.
+        Fokus pada:
+        - Strategi produksi yang direkomendasikan
+        - Trade-off antara komponen biaya
+        - Implikasi terhadap pengelolaan tenaga kerja dan persediaan
+        """
+        
+        try:
+            response = model.generate_content(prompt)
+            return response.text
+        except Exception as e:
+            logging.error(f"Error menghasilkan interpretasi Perencanaan Agregat: {e}")
+            return f"Error menghasilkan interpretasi: {e}"
+    
+    # Rumus matematika dan model perencanaan agregat
+    st.subheader("Model Perencanaan Agregat dengan Mixed Strategy")
+    st.write("Mixed strategy dalam perencanaan agregat menggabungkan beberapa strategi untuk meminimalkan total biaya:")
+    
+    st.latex(r"Minimize\ Z = \sum_{t=1}^{T}(C_r \cdot R_t + C_o \cdot O_t + C_i \cdot I_t + C_{ru} \cdot RU_t + C_{rd} \cdot RD_t + C_s \cdot S_t)")
+    
+    st.write("dengan batasan:")
+    st.latex(r"R_t + O_t + I_{t-1} - I_t = D_t \quad \forall t=1,...,T")
+    st.latex(r"R_t \leq M \cdot WF_t \quad \forall t=1,...,T")
+    st.latex(r"O_t \leq N \cdot WF_t \quad \forall t=1,...,T")
+    st.latex(r"RU_t \geq WF_t - WF_{t-1} \quad \forall t=1,...,T")
+    st.latex(r"RD_t \geq WF_{t-1} - WF_t \quad \forall t=1,...,T")
+    
+    st.write("dimana:")
+    st.write("- $R_t$ = Produksi regular time pada periode $t$")
+    st.write("- $O_t$ = Produksi overtime pada periode $t$")
+    st.write("- $I_t$ = Inventori di akhir periode $t$")
+    st.write("- $D_t$ = Permintaan pada periode $t$")
+    st.write("- $WF_t$ = Tingkat tenaga kerja pada periode $t$")
+    st.write("- $RU_t$ = Peningkatan tenaga kerja (ramping up) pada periode $t$")
+    st.write("- $RD_t$ = Pengurangan tenaga kerja (ramping down) pada periode $t$")
+    st.write("- $S_t$ = Setup produksi pada periode $t$")
+    st.write("- $C_r, C_o, C_i, C_{ru}, C_{rd}, C_s$ = Biaya terkait")
+    
+    with st.expander("Data Permintaan & Parameter", expanded=True):
+        # Tabel permintaan default
+        permintaan_default = {
+            'Minggu': [1, 2, 3, 4, 5, 6],
+            'Vanila': [180, 120, 210, 180, 95, 140],
+            'Coklat': [180, 110, 200, 420, 110, 90],
+            'Stroberi': [90, 70, 190, 100, 95, 70]
+        }
+        
+        # Tampilkan tabel permintaan dengan kemungkinan untuk diedit
+        st.subheader("Data Permintaan (Kiloliter)")
+        edited_df = st.data_editor(pd.DataFrame(permintaan_default), use_container_width=True)
+        
+        # Parameter filling rate
+        st.subheader("Filling Rates (kiloliter/jam)")
+        col1, col2, col3 = st.columns(3)
+        fill_vanila = col1.number_input("Filling Rate Vanila", value=7.5, step=0.1)
+        fill_coklat = col2.number_input("Filling Rate Coklat", value=8.1, step=0.1)
+        fill_stroberi = col3.number_input("Filling Rate Stroberi", value=5.2, step=0.1)
+        fill_agregat = st.number_input("Filling Rate Agregat", value=9.0, step=0.1)
+        
+        # Parameter biaya
+        st.subheader("Parameter Biaya (Rp juta)")
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            biaya_prod = st.number_input("Biaya Produksi", value=15.0, step=1.0)
+            inv_cost = st.number_input("Inventory Cost (per jam per minggu)", value=2.0, step=0.1)
+            reg_cost = st.number_input("Regular Time Cost (per jam)", value=6.0, step=0.1)
+            ot_cost = st.number_input("Overtime Cost (per jam)", value=10.0, step=0.1)
+        
+        with col2:
+            ramp_up = st.number_input("Ramping Up Cost (per jam)", value=5.0, step=0.1)
+            ramp_down = st.number_input("Ramping Down Cost (per jam)", value=8.0, step=0.1)
+            setup_vanila = st.number_input("Setup Cost Vanila", value=10.0, step=1.0)
+            setup_coklat = st.number_input("Setup Cost Coklat", value=15.0, step=1.0)
+            setup_stroberi = st.number_input("Setup Cost Stroberi", value=20.0, step=1.0)
+        
+        # Jam kerja
+        st.subheader("Jam Kerja")
+        col1, col2, col3 = st.columns(3)
+        reg_hours = col1.number_input("Jam Kerja Regular (jam/hari)", value=8, step=1)
+        ot_hours = col2.number_input("Jam Kerja Overtime (jam/hari)", value=2, step=1)
+        work_days = col3.number_input("Hari Kerja per Minggu", value=5, step=1)
+    
+    # Tombol untuk menjalankan perhitungan
+    if st.button("Selesaikan Masalah 3"):
+        with st.spinner("Menghitung perencanaan agregat..."):
+            # Ambil data dari editor
+            permintaan_vanila = edited_df['Vanila'].tolist()
+            permintaan_coklat = edited_df['Coklat'].tolist()
+            permintaan_stroberi = edited_df['Stroberi'].tolist()
+            
+            # Hitung jam kerja tersedia per minggu
+            regular_hours_per_week = reg_hours * work_days
+            overtime_hours_per_week = ot_hours * work_days
+            total_hours_per_week = regular_hours_per_week + overtime_hours_per_week
+            
+            # Konversi permintaan ke jam produksi
+            jam_vanila = [d / fill_vanila for d in permintaan_vanila]
+            jam_coklat = [d / fill_coklat for d in permintaan_coklat]
+            jam_stroberi = [d / fill_stroberi for d in permintaan_stroberi]
+            
+            # Total jam produksi yang dibutuhkan per minggu
+            total_jam = [v + c + s for v, c, s in zip(jam_vanila, jam_coklat, jam_stroberi)]
+            
+            # Perencanaan dengan mixed strategy (trial and error)
+            # Pendekatan: Gunakan regular time dulu, lalu overtime, lalu adjust dengan persediaan
+            
+            regular_used = []
+            overtime_used = []
+            inventory = [0]  # Mulai dengan persediaan 0
+            backlog = [0]    # Backlog awal 0
+            
+            # Strategi mixed
+            for i, jam in enumerate(total_jam):
+                # Jam yang tersedia di minggu ini
+                available_reg = regular_hours_per_week
+                available_ot = overtime_hours_per_week
+                
+                # Inventori dari minggu sebelumnya
+                prev_inv = inventory[-1]
+                prev_backlog = backlog[-1]
+                
+                # Kebutuhan produksi setelah memperhitungkan inventori dan backlog
+                net_req = jam + prev_backlog - prev_inv
+                
+                if net_req <= 0:
+                    # Terlalu banyak inventori, tidak perlu produksi
+                    reg_used = 0
+                    ot_used = 0
+                    curr_inv = abs(net_req)
+                    curr_backlog = 0
+                elif net_req <= available_reg:
+                    # Cukup dengan regular time
+                    reg_used = net_req
+                    ot_used = 0
+                    curr_inv = 0
+                    curr_backlog = 0
+                elif net_req <= available_reg + available_ot:
+                    # Perlu regular + sebagian overtime
+                    reg_used = available_reg
+                    ot_used = net_req - available_reg
+                    curr_inv = 0
+                    curr_backlog = 0
+                else:
+                    # Gunakan semua kapasitas + backlog
+                    reg_used = available_reg
+                    ot_used = available_ot
+                    curr_inv = 0
+                    curr_backlog = net_req - (available_reg + available_ot)
+                
+                regular_used.append(reg_used)
+                overtime_used.append(ot_used)
+                inventory.append(curr_inv)
+                backlog.append(curr_backlog)
+            
+            # Hapus inventori awal dan tambahkan inventori akhir
+            inventory = inventory[1:]
+            backlog = backlog[1:]
+            
+            # Hitung biaya-biaya
+            # 1. Biaya regular time
+            regular_cost = sum(regular_used) * reg_cost
+            
+            # 2. Biaya overtime
+            overtime_cost = sum(overtime_used) * ot_cost
+            
+            # 3. Biaya inventory
+            inventory_cost = sum(inventory) * inv_cost
+            
+            # 4. Biaya ramping (perubahan level produksi)
+            ramping_cost = 0
+            for i in range(1, len(regular_used)):
+                if regular_used[i] > regular_used[i-1]:
+                    # Ramping up
+                    ramping_cost += (regular_used[i] - regular_used[i-1]) * ramp_up
+                else:
+                    # Ramping down
+                    ramping_cost += (regular_used[i-1] - regular_used[i]) * ramp_down
+            
+            # 5. Biaya setup (diasumsikan setup sekali per minggu untuk tiap jenis)
+            # Jika ada produksi minimal 1 jam, ada setup
+            setup_cost = 0
+            for i in range(len(permintaan_vanila)):
+                if jam_vanila[i] > 0:
+                    setup_cost += setup_vanila
+                if jam_coklat[i] > 0:
+                    setup_cost += setup_coklat
+                if jam_stroberi[i] > 0:
+                    setup_cost += setup_stroberi
+            
+            # Total biaya
+            total_biaya = regular_cost + overtime_cost + inventory_cost + ramping_cost + setup_cost
+            
+            # Simpan hasil dalam kamus untuk interpretasi
+            hasil = {
+                'total_biaya': total_biaya,
+                'rincian_produksi': {
+                    'regular_hours': regular_used,
+                    'overtime_hours': overtime_used,
+                    'total_required_hours': total_jam
+                },
+                'persediaan': inventory,
+                'backlog': backlog,
+                'biaya_komponen': {
+                    'regular_cost': regular_cost,
+                    'overtime_cost': overtime_cost,
+                    'inventory_cost': inventory_cost,
+                    'ramping_cost': ramping_cost,
+                    'setup_cost': setup_cost
+                }
+            }
+            
+            # Tampilkan hasil
+            st.subheader("Hasil Perencanaan Agregat")
+            
+            # Metrik ringkasan
+            col1, col2, col3 = st.columns(3)
+            col1.metric("Total Biaya", f"Rp {total_biaya:.2f} Juta")
+            col2.metric("Total Jam Regular", f"{sum(regular_used):.2f} jam")
+            col3.metric("Total Jam Overtime", f"{sum(overtime_used):.2f} jam")
+            
+            # Tabel perencanaan detail
+            st.subheader("Rencana Produksi Mingguan")
+            df_rencana = pd.DataFrame({
+                'Minggu': range(1, 7),
+                'Permintaan Total (kl)': [sum(x) for x in zip(permintaan_vanila, permintaan_coklat, permintaan_stroberi)],
+                'Kebutuhan Jam': total_jam,
+                'Jam Regular': regular_used,
+                'Jam Overtime': overtime_used,
+                'Inventori (jam)': inventory,
+                'Backlog (jam)': backlog
+            })
+            st.dataframe(df_rencana)
+            
+            # Visualisasi permintaan vs kapasitas
+            st.subheader("Permintaan vs Kapasitas")
+            fig, ax = plt.subplots(figsize=(12, 6))
+            
+            weeks = range(1, 7)
+            capacity_reg = [regular_hours_per_week] * 6
+            capacity_total = [regular_hours_per_week + overtime_hours_per_week] * 6
+            
+            ax.bar(weeks, total_jam, color='blue', alpha=0.7, label='Kebutuhan Jam')
+            ax.plot(weeks, capacity_reg, 'r--', linewidth=2, label=f'Kapasitas Regular ({regular_hours_per_week} jam)')
+            ax.plot(weeks, capacity_total, 'g--', linewidth=2, label=f'Kapasitas Total ({total_hours_per_week} jam)')
+            
+            ax.set_xlabel('Minggu')
+            ax.set_ylabel('Jam')
+            ax.set_title('Permintaan vs Kapasitas Produksi')
+            ax.legend()
+            ax.grid(alpha=0.3)
+            
+            st.pyplot(fig)
+            
+            # Visualisasi inventori
+            st.subheader("Level Persediaan per Minggu")
+            fig, ax = plt.subplots(figsize=(12, 6))
+            
+            ax.bar(weeks, inventory, color='green', alpha=0.7)
+            ax.set_xlabel('Minggu')
+            ax.set_ylabel('Persediaan (jam)')
+            ax.set_title('Level Persediaan per Minggu')
+            ax.grid(alpha=0.3)
+            
+            st.pyplot(fig)
+            
+            # Visualisasi komponen biaya
+            st.subheader("Komponen Biaya")
+            biaya_labels = ['Regular', 'Overtime', 'Inventory', 'Ramping', 'Setup']
+            biaya_values = [regular_cost, overtime_cost, inventory_cost, ramping_cost, setup_cost]
+            
+            fig, ax = plt.subplots(figsize=(10, 6))
+            ax.bar(biaya_labels, biaya_values, color=['blue', 'orange', 'green', 'red', 'purple'])
+            
+            # Tambahkan label nilai di atas setiap batang
+            for i, v in enumerate(biaya_values):
+                ax.text(i, v + 1, f'{v:.1f}', ha='center')
+                
+            ax.set_ylabel('Biaya (Rp Juta)')
+            ax.set_title('Komponen Biaya Perencanaan Agregat')
+            ax.grid(axis='y', alpha=0.3)
+            
+            st.pyplot(fig)
+            
+            # Pie chart komposisi biaya
+            fig, ax = plt.subplots(figsize=(8, 8))
+            ax.pie(biaya_values, labels=biaya_labels, autopct='%1.1f%%', startangle=90)
+            ax.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle
+            ax.set_title('Proporsi Komponen Biaya')
+            
+            st.pyplot(fig)
+            
+            # Dashboard Ringkasan
+            st.subheader("Dashboard Ringkasan Hasil")
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                # Metrik-metrik utama
+                st.metric("Utilisasi Kapasitas Regular", f"{sum(regular_used) / (regular_hours_per_week * 6) * 100:.1f}%")
+                st.metric("Utilisasi Kapasitas Total", f"{(sum(regular_used) + sum(overtime_used)) / (total_hours_per_week * 6) * 100:.1f}%")
+                st.metric("Rata-rata Inventori", f"{sum(inventory) / len(inventory):.2f} jam")
+            
+            with col2:
+                # Metrik lain
+                st.metric("Biaya per Unit", f"Rp {total_biaya / sum([sum(x) for x in zip(permintaan_vanila, permintaan_coklat, permintaan_stroberi)]):.2f} Juta/kl")
+                st.metric("Backlog Maksimum", f"{max(backlog):.2f} jam")
+                st.metric("Minggu dengan Kebutuhan Tertinggi", f"Minggu {total_jam.index(max(total_jam))+1} ({max(total_jam):.2f} jam)")
+            
+            # Interpretasi dengan API
+            st.subheader("Interpretasi Perencanaan Agregat")
+            with st.container():
+                if model:
+                    st.markdown(interpretasi_perencanaan_agregat(model, hasil))
+                else:
+                    st.warning("API Key belum dimasukkan atau gagal terhubung.")
 
 # Masalah 4: Jadwal Produksi Induk
+# Masalah 4: Jadwal Produksi Induk (MPS) dengan Metode Bitran Hax
+# Masalah 4: Jadwal Produksi Induk (MPS) dengan Metode Bitran Hax
 def selesaikan_masalah_4():
-    st.header("Masalah 4: Jadwal Produksi Induk")
-    st.info("Implementasi untuk Jadwal Produksi Induk akan ditambahkan di sini.")
-    # Di sini Anda akan menambahkan logika dan UI untuk Jadwal Produksi Induk
-
+    st.header("Masalah 4: Jadwal Produksi Induk (MPS)")
+    
+    # Fungsi interpretasi khusus untuk MPS
+    def interpretasi_mps(model, hasil):
+        if not model:
+            return "Interpretasi AI tidak tersedia."
+            
+        prompt = f"""
+        Saya telah mengembangkan Jadwal Produksi Induk (MPS) untuk LSP Bakery menggunakan metode Bitran Hax.
+        
+        Hasil analisis:
+        - MPS untuk bulan Januari: {hasil['mps_januari']}
+        - Pemenuhan kebutuhan safety stock: {hasil['safety_stock_terpenuhi']}
+        - Biaya setup: {hasil['setup_cost']} miliar Rupiah
+        - Kebutuhan kapasitas: {hasil['kebutuhan_kapasitas']} unit produksi
+        
+        Berikan interpretasi yang ringkas dan profesional dalam 3-5 poin utama dalam bahasa Indonesia.
+        Fokus pada:
+        - Alokasi produksi antar keluarga dan item produk
+        - Efisiensi dalam penggunaan sumber daya dan kapasitas
+        - Implikasi terhadap inventory management dan customer service level
+        """
+        
+        try:
+            response = model.generate_content(prompt)
+            return response.text
+        except Exception as e:
+            logging.error(f"Error menghasilkan interpretasi MPS: {e}")
+            return f"Error menghasilkan interpretasi: {e}"
+    
+    # Tambahkan rumus dan penjelasan - PERBAIKAN FORMAT LATEX
+    st.subheader("Metode Bitran Hax untuk Master Production Schedule (MPS)")
+    st.write("Metode Bitran Hax adalah pendekatan dua tahap untuk membuat jadwal produksi induk:")
+    
+    st.write("**Tahap 1: Alokasi Kapasitas ke Keluarga Produk**")
+    # Gunakan rumus individual untuk menghindari masalah format
+    st.latex(r"\min \sum_{i \in F} C_i Y_i")
+    st.latex(r"\text{s.t. } \sum_{i \in F} P_i \leq P^T")
+    st.latex(r"L_i \leq P_i \leq U_i, \forall i \in F")
+    st.latex(r"Y_i = \begin{cases} 1 & \text{jika } P_i > 0 \\ 0 & \text{jika } P_i = 0 \end{cases}")
+    
+    st.write("**Tahap 2: Disagregasi ke Item-Item Produk**")
+    st.latex(r"L_{ij} \leq X_{ij} \leq U_{ij}, \forall i \in F, j \in J_i")
+    st.latex(r"\sum_{j \in J_i} X_{ij} = P_i, \forall i \in F")
+    
+    st.write("dimana:")
+    st.write("- $F$ = Himpunan keluarga produk")
+    st.write("- $J_i$ = Himpunan item dalam keluarga $i$")
+    st.write("- $P_i$ = Jumlah produksi keluarga $i$")
+    st.write("- $P^T$ = Total kapasitas produksi")
+    st.write("- $L_i, U_i$ = Batas bawah dan atas produksi keluarga $i$")
+    st.write("- $L_{ij}, U_{ij}$ = Batas bawah dan atas produksi item $j$ dalam keluarga $i$")
+    st.write("- $X_{ij}$ = Jumlah produksi item $j$ dalam keluarga $i$")
+    st.write("- $C_i$ = Biaya setup keluarga $i$")
+    st.write("- $Y_i$ = Variabel biner untuk setup keluarga $i$")
+    
+    with st.expander("Data Produksi dan Permintaan", expanded=True):
+        # Input rencana produksi agregat
+        st.subheader("Rencana Produksi Agregat 2025 (ribu unit)")
+        col1, col2, col3, col4 = st.columns(4)
+        prod_jan = col1.number_input("Januari", value=98.3, step=0.1)
+        prod_feb = col2.number_input("Februari", value=97.0, step=0.1)
+        prod_mar = col3.number_input("Maret", value=105.3, step=0.1)
+        prod_apr = col4.number_input("April", value=114.1, step=0.1)
+        
+        # Data default untuk faktor konversi dan safety stock
+        data_produk_default = {
+            'Famili': ['Roti Hamburger', 'Roti Hamburger', 'Roti Hamburger', 
+                      'Roti Hotdog', 'Roti Hotdog',
+                      'Roti Bagel', 'Roti Bagel'],
+            'Item': ['White', 'Wijen', 'WholeGrain', 'Plain', 'Garlic', 'Savory', 'Sweet'],
+            'Konversi': [0.2, 0.3, 0.4, 0.15, 0.2, 0.1, 0.15],
+            'Safety Stock': [120, 60, 45, 90, 80, 75, 50]
+        }
+        
+        # Tabel kebijakan produksi
+        st.subheader("Kebijakan Produksi")
+        df_kebijakan = pd.DataFrame(data_produk_default)
+        edited_kebijakan = st.data_editor(df_kebijakan, use_container_width=True)
+        
+        # Data perkiraan permintaan
+        data_permintaan_default = {
+            'Item': ['White', 'Wijen', 'WholeGrain', 'Plain', 'Garlic', 'Savory', 'Sweet'],
+            'Inventory Des': [335.2, 148.7, 57.5, 280.4, 96.2, 101, 121],
+            'Jan': [210.6, 84.0, 15.4, 175.2, 27.2, 20.7, 65.3],
+            'Feb': [172.0, 74.8, 16.0, 198.0, 17.6, 22.8, 71.8],
+            'Mar': [255.2, 88.8, 16.8, 178.0, 22.0, 29.6, 93.4],
+            'Apr': [360.0, 57.6, 19.2, 128.0, 36.0, 44.4, 140.1]
+        }
+        
+        # Tabel perkiraan permintaan
+        st.subheader("Perkiraan Permintaan (ribu unit)")
+        df_permintaan = pd.DataFrame(data_permintaan_default)
+        edited_permintaan = st.data_editor(df_permintaan, use_container_width=True)
+        
+        # Biaya setup
+        st.subheader("Biaya Setup (Miliar Rupiah)")
+        col1, col2, col3 = st.columns(3)
+        setup_hamburger = col1.number_input("Roti Hamburger", value=9, step=1)
+        setup_hotdog = col2.number_input("Roti Hotdog", value=4, step=1)
+        setup_bagel = col3.number_input("Roti Bagel", value=6, step=1)
+        
+        # Parameter batas atas
+        st.subheader("Parameter Batas Atas")
+        n_param = st.number_input("Nilai N untuk batas atas", value=2, min_value=1, max_value=4, step=1)
+    
+    # Tombol untuk menjalankan perhitungan
+    if st.button("Selesaikan Masalah 4"):
+        with st.spinner("Menghitung Jadwal Produksi Induk..."):
+            # 1. Mengumpulkan data dari input
+            items = edited_kebijakan['Item'].tolist()
+            families = edited_kebijakan['Famili'].tolist()
+            konversi = edited_kebijakan['Konversi'].tolist()
+            safety_stock = edited_kebijakan['Safety Stock'].tolist()
+            
+            # Inventori awal dan permintaan
+            inv_awal = edited_permintaan['Inventory Des'].tolist()
+            permintaan_jan = edited_permintaan['Jan'].tolist()
+            permintaan_feb = edited_permintaan['Feb'].tolist()
+            permintaan_mar = edited_permintaan['Mar'].tolist()
+            
+            # Biaya setup per famili
+            setup_costs = {
+                'Roti Hamburger': setup_hamburger,
+                'Roti Hotdog': setup_hotdog,
+                'Roti Bagel': setup_bagel
+            }
+            
+            # 2. Implementasi Metode Bitran Hax
+            # Langkah 1: Hitung batas atas dan bawah untuk setiap produk
+            
+            # Fungsi untuk menghitung net requirement
+            def hitung_net_req(inv_awal, permintaan, ss):
+                net_req = max(0, permintaan + ss - inv_awal)
+                return net_req
+            
+            # Hitung batas bawah (NetReq untuk Jan)
+            batas_bawah = []
+            for i in range(len(items)):
+                net_req_jan = hitung_net_req(inv_awal[i], permintaan_jan[i], safety_stock[i])
+                batas_bawah.append(net_req_jan)
+            
+            # Hitung batas atas (NetReq untuk Jan + Feb atau lebih)
+            batas_atas = []
+            for i in range(len(items)):
+                # Batas atas dengan N=n_param bulan ke depan
+                total_demand = permintaan_jan[i]
+                
+                if n_param >= 2:
+                    total_demand += permintaan_feb[i]
+                    
+                if n_param >= 3:
+                    total_demand += permintaan_mar[i]
+                
+                net_req_total = hitung_net_req(inv_awal[i], total_demand, safety_stock[i])
+                batas_atas.append(net_req_total)
+            
+            # Langkah 2: Agregasi batas bawah dan atas per famili
+            unique_families = list(set(families))
+            family_lb = {fam: 0 for fam in unique_families}
+            family_ub = {fam: 0 for fam in unique_families}
+            
+            for i, fam in enumerate(families):
+                family_lb[fam] += batas_bawah[i]
+                family_ub[fam] += batas_atas[i]
+            
+            # Langkah 3: Alokasi kapasitas agregat ke famili (Tahap 1 Bitran Hax)
+            # Pendekatan prioritas berdasarkan biaya setup
+            
+            # Buat daftar famili berdasarkan prioritas (biaya setup tertinggi)
+            priority_families = sorted(unique_families, key=lambda x: setup_costs[x], reverse=True)
+            
+            # Alokasi kapasitas tersisa ke famili
+            remaining_capacity = prod_jan * 1000  # konversi dari ribu unit ke unit
+            family_alloc = {fam: 0 for fam in unique_families}
+            
+            # Pertama, penuhi semua batas bawah
+            for fam in priority_families:
+                family_alloc[fam] = family_lb[fam]
+                remaining_capacity -= family_lb[fam]
+            
+            # Kemudian, prioritaskan alokasi ke batas atas mulai dari prioritas tertinggi
+            for fam in priority_families:
+                additional_alloc = min(remaining_capacity, family_ub[fam] - family_lb[fam])
+                family_alloc[fam] += additional_alloc
+                remaining_capacity -= additional_alloc
+            
+            # Langkah 4: Alokasi dari famili ke item (Tahap 2 Bitran Hax)
+            # Proportional allocation based on conversion rates
+            item_alloc = {}
+            
+            for i, item in enumerate(items):
+                fam = families[i]
+                
+                # Pastikan batas bawah item terpenuhi
+                item_alloc[item] = batas_bawah[i]
+                
+                # Jika masih ada kapasitas tersisa untuk famili, alokasikan berdasarkan proporsi
+                remaining_family_cap = family_alloc[fam] - sum([batas_bawah[j] for j, f in enumerate(families) if f == fam])
+                
+                if remaining_family_cap > 0:
+                    # Hitung proporsi konversi untuk semua item dalam famili
+                    family_items_idx = [j for j, f in enumerate(families) if f == fam]
+                    family_konversi = [konversi[j] for j in family_items_idx]
+                    total_konversi = sum(family_konversi)
+                    
+                    # Alokasikan berdasarkan proporsi
+                    item_konversi_proportion = konversi[i] / total_konversi
+                    item_additional = min(
+                        remaining_family_cap * item_konversi_proportion,
+                        batas_atas[i] - batas_bawah[i]
+                    )
+                    item_alloc[item] += item_additional
+            
+            # Langkah 5: Hitung nilai akhir MPS dan inventori akhir
+            mps_januari = {}
+            inv_akhir_jan = {}
+            
+            for i, item in enumerate(items):
+                # Pembulatan ke atas untuk memastikan safety stock terpenuhi
+                mps_januari[item] = round(item_alloc[item])
+                
+                # Hitung inventori akhir
+                inv_akhir_jan[item] = inv_awal[i] + mps_januari[item] - permintaan_jan[i]
+            
+            # Evaluasi hasil
+            # Cek apakah safety stock terpenuhi
+            safety_stock_terpenuhi = {}
+            for i, item in enumerate(items):
+                safety_stock_terpenuhi[item] = inv_akhir_jan[item] >= safety_stock[i]
+            
+            # Hitung total biaya setup
+            total_setup_cost = sum([setup_costs[fam] for fam in unique_families if sum([mps_januari[item] for i, item in enumerate(items) if families[i] == fam]) > 0])
+            
+            # Hitung kebutuhan kapasitas
+            kebutuhan_kapasitas = sum([mps_januari[item] * konversi[i] for i, item in enumerate(items)])
+            
+            # Kumpulkan hasil untuk interpretasi
+            hasil = {
+                'mps_januari': mps_januari,
+                'safety_stock_terpenuhi': safety_stock_terpenuhi,
+                'setup_cost': total_setup_cost,
+                'kebutuhan_kapasitas': kebutuhan_kapasitas,
+                'inv_akhir_jan': inv_akhir_jan
+            }
+            
+            # Tampilkan hasil
+            st.subheader("Jadwal Produksi Induk Januari 2025")
+            
+            # Tabel MPS
+            mps_data = []
+            for i, item in enumerate(items):
+                mps_data.append({
+                    'Famili': families[i],
+                    'Item': item,
+                    'Konversi': konversi[i],
+                    'Safety Stock': safety_stock[i],
+                    'Inventori Awal': inv_awal[i],
+                    'Net Requirement': batas_bawah[i],
+                    'Batas Atas': batas_atas[i],
+                    'MPS Januari': mps_januari[item],
+                    'Inventori Akhir': inv_akhir_jan[item],
+                    'SS Terpenuhi': 'Ya' if safety_stock_terpenuhi[item] else 'Tidak'
+                })
+            
+            mps_df = pd.DataFrame(mps_data)
+            st.dataframe(mps_df)
+            
+            # Tampilkan metrik ringkasan
+            col1, col2, col3 = st.columns(3)
+            col1.metric("Total Produksi", f"{sum(mps_januari.values()):.1f} unit")
+            col2.metric("Total Biaya Setup", f"Rp {total_setup_cost} Miliar")
+            col3.metric("Kebutuhan Kapasitas", f"{kebutuhan_kapasitas:.2f} unit agregat")
+            
+            # Visualisasi MPS per item
+            st.subheader("MPS Januari 2025 per Item")
+            
+            # Bar chart untuk MPS
+            fig, ax = plt.subplots(figsize=(12, 8))
+            
+            # Kelompokkan berdasarkan famili
+            family_items = {}
+            for fam in unique_families:
+                family_items[fam] = [i for i, f in enumerate(families) if f == fam]
+            
+            # Plot dengan warna berbeda per famili
+            colors = ['blue', 'green', 'orange']
+            bar_positions = list(range(len(items)))
+            
+            for i, fam in enumerate(unique_families):
+                fam_positions = [bar_positions[idx] for idx in family_items[fam]]
+                fam_items = [items[idx] for idx in family_items[fam]]
+                fam_mps = [mps_januari[item] for item in fam_items]
+                
+                ax.bar(fam_positions, fam_mps, color=colors[i % len(colors)], label=fam)
+                
+                # Tambahkan label nilai
+                for j, pos in enumerate(fam_positions):
+                    ax.text(pos, fam_mps[j] + 5, f'{int(fam_mps[j])}', ha='center')
+            
+            ax.set_xticks(bar_positions)
+            ax.set_xticklabels(items, rotation=45)
+            ax.set_title('Master Production Schedule Januari 2025')
+            ax.set_ylabel('Jumlah Produksi')
+            ax.legend()
+            st.pyplot(fig)
+            
+            # Interpretasi hasil visualisasi MPS
+            st.markdown("### Interpretasi Visualisasi MPS")
+            vis_mps_desc = {
+                "distribusi_produksi": {fam: sum([mps_januari[items[i]] for i in idx]) for fam, idx in family_items.items()},
+                "item_terbanyak": max(mps_januari.items(), key=lambda x: x[1])[0],
+                "item_tersedikit": min(mps_januari.items(), key=lambda x: x[1])[0]
+            }
+            if model:
+                st.markdown(interpretasi_mps(model, vis_mps_desc))
+            else:
+                st.warning("API Key belum dimasukkan atau gagal terhubung.")
+            
+            # Visualisasi perbandingan inventory vs safety stock
+            st.subheader("Inventori Akhir vs Safety Stock")
+            
+            fig, ax = plt.subplots(figsize=(12, 6))
+            
+            x = range(len(items))
+            width = 0.35
+            
+            # Plot inventori akhir
+            bars1 = ax.bar([p - width/2 for p in x], [inv_akhir_jan[item] for item in items], width, color='blue', label='Inventori Akhir')
+            
+            # Plot safety stock
+            bars2 = ax.bar([p + width/2 for p in x], safety_stock, width, color='red', label='Safety Stock')
+            
+            # Tambahkan label nilai
+            for bar in bars1:
+                height = bar.get_height()
+                ax.text(bar.get_x() + bar.get_width()/2., height + 5, f'{int(height)}', ha='center')
+                
+            for bar in bars2:
+                height = bar.get_height()
+                ax.text(bar.get_x() + bar.get_width()/2., height + 5, f'{int(height)}', ha='center')
+            
+            ax.set_title('Inventori Akhir vs Safety Stock Januari 2025')
+            ax.set_ylabel('Jumlah')
+            ax.set_xticks(x)
+            ax.set_xticklabels(items, rotation=45)
+            ax.legend()
+            
+            st.pyplot(fig)
+            
+            # Interpretasi hasil inventori
+            st.markdown("### Interpretasi Inventori vs Safety Stock")
+            inv_desc = {
+                "safety_stock_terpenuhi": all(safety_stock_terpenuhi.values()),
+                "item_tidak_terpenuhi": [item for item, terpenuhi in safety_stock_terpenuhi.items() if not terpenuhi],
+                "total_inventori": sum(inv_akhir_jan.values()),
+                "ratio_inventori_safety": sum(inv_akhir_jan.values()) / sum(safety_stock)
+            }
+            if model:
+                st.markdown(interpretasi_mps(model, inv_desc))
+            else:
+                st.warning("API Key belum dimasukkan atau gagal terhubung.")
+            
+            # Visualisasi alokasi produksi per famili
+            st.subheader("Alokasi Produksi per Famili")
+            
+            family_prod = {fam: sum([mps_januari[items[i]] for i in family_items[fam]]) for fam in unique_families}
+            
+            fig, ax = plt.subplots(figsize=(8, 8))
+            ax.pie(list(family_prod.values()), labels=list(family_prod.keys()), autopct='%1.1f%%')
+            ax.set_title('Proporsi Produksi per Famili')
+            ax.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle
+            
+            st.pyplot(fig)
+            
+            # Interpretasi distribusi produksi per famili
+            st.markdown("### Interpretasi Distribusi Produksi per Famili")
+            fam_dist_desc = {
+                "distribusi": family_prod,
+                "famili_terbesar": max(family_prod.items(), key=lambda x: x[1])[0],
+                "proporsi_terbesar": max(family_prod.values()) / sum(family_prod.values()) * 100,
+                "biaya_setup": {fam: setup_costs[fam] for fam in family_prod.keys()}
+            }
+            if model:
+                st.markdown(interpretasi_mps(model, fam_dist_desc))
+            else:
+                st.warning("API Key belum dimasukkan atau gagal terhubung.")
+            
+            # Dashboard ringkasan
+            st.subheader("Dashboard Ringkasan MPS")
+            
+            # Perbandingan kapasitas agregat vs alokasi
+            fig, ax = plt.subplots(figsize=(10, 6))
+            
+            # Kapasitas agregat
+            ax.bar(0, prod_jan * 1000, color='green', alpha=0.7, label='Kapasitas Agregat Jan')
+            
+            # Alokasi
+            ax.bar(1, sum(mps_januari.values()), color='blue', alpha=0.7, label='Total MPS Jan')
+            
+            # Tambahkan label nilai
+            ax.text(0, prod_jan * 1000 + 1000, f'{int(prod_jan * 1000)}', ha='center')
+            ax.text(1, sum(mps_januari.values()) + 1000, f'{int(sum(mps_januari.values()))}', ha='center')
+            
+            ax.set_xticks([0, 1])
+            ax.set_xticklabels(['Kapasitas Agregat', 'Total MPS'])
+            ax.set_title('Kapasitas Agregat vs Total MPS Januari 2025')
+            ax.set_ylabel('Unit')
+            ax.legend()
+            
+            st.pyplot(fig)
+            
+            # Interpretasi keseluruhan dan rekomendasi
+            st.subheader("Interpretasi Jadwal Produksi Induk")
+            with st.container():
+                if model:
+                    st.markdown(interpretasi_mps(model, hasil))
+                else:
+                    st.warning("API Key belum dimasukkan atau gagal terhubung.")
+# Masalah 5: Penyeimbangan Lini Perakitan
 # Masalah 5: Penyeimbangan Lini Perakitan
 def selesaikan_masalah_5():
     st.header("Masalah 5: Penyeimbangan Lini Perakitan")
-    st.info("Implementasi untuk Penyeimbangan Lini Perakitan akan ditambahkan di sini.")
-    # Di sini Anda akan menambahkan logika dan UI untuk Penyeimbangan Lini Perakitan
+    
+    # Fungsi interpretasi untuk line balancing
+    def interpretasi_line_balancing(model, hasil):
+        if not model:
+            return "Interpretasi AI tidak tersedia."
+            
+        prompt = f"""
+        Saya telah melakukan analisis penyeimbangan lini perakitan untuk PT Jason.
+        
+        Hasil analisis:
+        - Jumlah workstation: {hasil['jumlah_workstation']}
+        - Efisiensi lini: {hasil['efisiensi']}
+        - Perbandingan metode: {hasil['perbandingan']}
+        - Penugasan task: {hasil['penugasan']}
+        
+        Berikan interpretasi yang ringkas dan profesional dalam 3-5 poin utama dalam bahasa Indonesia.
+        Fokus pada:
+        - Metode yang paling efisien dan alasannya
+        - Implikasi terhadap produktivitas dan utilisasi sumber daya
+        - Rekomendasi terbaik untuk PT Jason
+        """
+        
+        try:
+            response = model.generate_content(prompt)
+            return response.text
+        except Exception as e:
+            logging.error(f"Error menghasilkan interpretasi Line Balancing: {e}")
+            return f"Error menghasilkan interpretasi: {e}"
+    
+    # Rumus dan penjelasan
+    st.subheader("Penyeimbangan Lini Perakitan (Assembly Line Balancing)")
+    st.write("Penyeimbangan lini adalah proses membagi tugas ke stasiun kerja untuk meminimalkan waktu idle dan memaksimalkan efisiensi.")
+    
+    # Rumus perhitungan
+    st.write("**Perhitungan Utama:**")
+    st.latex(r"\text{Jumlah workstation minimal} = \left\lceil \frac{\sum_{i=1}^{n} t_i}{c} \right\rceil")
+    st.latex(r"\text{Efisiensi lini} = \frac{\sum_{i=1}^{n} t_i}{m \times c} \times 100\%")
+    st.latex(r"\text{Balance delay} = \frac{m \times c - \sum_{i=1}^{n} t_i}{m \times c} \times 100\%")
+    
+    st.write("dimana:")
+    st.write("- $t_i$ = Waktu tugas $i$")
+    st.write("- $c$ = Waktu siklus")
+    st.write("- $m$ = Jumlah workstation")
+    st.write("- $n$ = Jumlah tugas")
+    
+    st.subheader("Metode Penyeimbangan Lini")
+    st.write("1. **Kilbridge-Weston**: Mengelompokkan tugas berdasarkan tingkat predesesor (level/kolom)")
+    st.write("2. **Helgeson-Birnie (RPW)**: Mengurutkan tugas berdasarkan bobot posisional")
+    st.write("3. **Regional Approach**: Mengelompokkan tugas berdasarkan kedekatan fisik/fungsi")
+    st.write("4. **Largest Candidate Rule**: Mengurutkan tugas berdasarkan waktu pengerjaan terbesar")
+    
+    # Input data untuk diagram jaringan
+    with st.expander("Data Task dan Precedence", expanded=True):
+        st.subheader("Diagram Jaringan Tugas")
+        
+        # Input data waktu tugas
+        st.write("Waktu Task (detik)")
+        col1, col2, col3, col4 = st.columns(4)
+        waktu_a = col1.number_input("Task A", value=5, step=1)
+        waktu_b = col2.number_input("Task B", value=4, step=1)
+        waktu_c = col3.number_input("Task C", value=6, step=1)
+        waktu_d = col4.number_input("Task D", value=4, step=1)
+        
+        col1, col2, col3 = st.columns(3)
+        waktu_e = col1.number_input("Task E", value=5, step=1)
+        waktu_f = col2.number_input("Task F", value=4, step=1)
+        waktu_g = col3.number_input("Task G", value=6, step=1)
+        
+        # Parameter produksi
+        st.subheader("Parameter Produksi")
+        col1, col2 = st.columns(2)
+        target_produksi = col1.number_input("Target Produksi (produk/menit)", value=6, step=1)
+        waktu_siklus = col2.number_input("Waktu Siklus (detik/produk)", value=10, step=1)
+    
+    # Visualisasi diagram jaringan
+    st.subheader("Visualisasi Diagram Jaringan")
+    
+    # Membuat diagram jaringan secara manual
+    import networkx as nx
+    
+    G = nx.DiGraph()
+    
+    # Tambahkan node dengan label waktu
+    tasks = ['A', 'B', 'C', 'D', 'E', 'F', 'G']
+    waktu_tasks = {
+        'A': waktu_a,
+        'B': waktu_b,
+        'C': waktu_c,
+        'D': waktu_d,
+        'E': waktu_e,
+        'F': waktu_f,
+        'G': waktu_g
+    }
+    
+    # Tambahkan node dengan label waktu
+    for task, waktu in waktu_tasks.items():
+        G.add_node(task, time=waktu)
+    
+    # Tambahkan edge berdasarkan hubungan preseden yang diberikan
+    G.add_edge('A', 'B')
+    G.add_edge('A', 'C')
+    G.add_edge('A', 'D')
+    G.add_edge('B', 'E')
+    G.add_edge('C', 'E')
+    G.add_edge('C', 'F')
+    G.add_edge('D', 'F')
+    G.add_edge('E', 'G')
+    G.add_edge('F', 'G')
+    
+    # Plot diagram jaringan
+    fig, ax = plt.subplots(figsize=(10, 8))
+    
+    # Layout untuk network diagram
+    pos = {
+        'A': (1, 2),
+        'B': (2, 3),
+        'C': (2, 2),
+        'D': (2, 1),
+        'E': (3, 2.5),
+        'F': (3, 1.5),
+        'G': (4, 2)
+    }
+    
+    # Gambar node
+    nx.draw_networkx_nodes(G, pos, node_size=500, node_color='lightblue', ax=ax)
+    
+    # Gambar edge dengan label waktu
+    edge_labels = {(u, v): G.nodes[v]['time'] for u, v in G.edges()}
+    nx.draw_networkx_edges(G, pos, arrows=True, width=2, edge_color='gray', ax=ax)
+    nx.draw_networkx_edge_labels(G, pos, edge_labels=edge_labels, font_color='red', ax=ax)
+    
+    # Tambahkan label node dengan waktu
+    labels = {node: f"{node}\n({G.nodes[node]['time']}s)" for node in G.nodes()}
+    nx.draw_networkx_labels(G, pos, labels=labels, font_size=10, font_weight='bold', ax=ax)
+    
+    # Tampilkan diagram
+    plt.axis('off')
+    st.pyplot(fig)
+    
+    # Tombol untuk menjalankan perhitungan
+    if st.button("Selesaikan Masalah 5"):
+        with st.spinner("Menghitung penyeimbangan lini..."):
+            # Ekstrak data dari network diagram untuk perhitungan
+            task_times = {task: G.nodes[task]['time'] for task in tasks}
+            
+            # Mendapatkan preseden untuk setiap task
+            predecessors = {task: list(G.predecessors(task)) for task in tasks}
+            
+            # Menghitung total waktu tugas
+            total_task_time = sum(task_times.values())
+            
+            # Teoritis jumlah workstation minimal
+            min_workstations = int(np.ceil(total_task_time / waktu_siklus))
+            
+            # 1. Metode Kilbridge-Weston
+            # Mengelompokkan tugas berdasarkan level/kolom
+            levels = {}
+            current_level = ['A']  # Task tanpa preseden
+            assigned_tasks = set(current_level)
+            level_num = 0
+            
+            while assigned_tasks != set(tasks):
+                levels[level_num] = current_level.copy()
+                next_level = []
+                
+                for task in current_level:
+                    for successor in G.successors(task):
+                        if all(pred in assigned_tasks for pred in predecessors[successor]):
+                            if successor not in next_level and successor not in assigned_tasks:
+                                next_level.append(successor)
+                
+                current_level = next_level
+                assigned_tasks.update(next_level)
+                level_num += 1
+                
+                if not next_level:  # Untuk menghindari infinite loop
+                    break
+                    
+            levels[level_num] = current_level.copy()
+            
+            # Menerapkan metode Kilbridge-Weston
+            kw_workstations = []
+            kw_current_station = []
+            kw_current_time = 0
+            
+            # Flatten tasks by level and sort by time within level
+            kw_ordered_tasks = []
+            for level_idx in range(level_num + 1):
+                level_tasks = levels.get(level_idx, [])
+                level_tasks.sort(key=lambda t: task_times[t], reverse=True)
+                kw_ordered_tasks.extend(level_tasks)
+            
+            # Assign tasks to workstations
+            for task in kw_ordered_tasks:
+                if kw_current_time + task_times[task] <= waktu_siklus:
+                    kw_current_station.append(task)
+                    kw_current_time += task_times[task]
+                else:
+                    kw_workstations.append((kw_current_station.copy(), kw_current_time))
+                    kw_current_station = [task]
+                    kw_current_time = task_times[task]
+            
+            if kw_current_station:
+                kw_workstations.append((kw_current_station, kw_current_time))
+            
+            # Menghitung efisiensi Kilbridge-Weston
+            kw_num_stations = len(kw_workstations)
+            kw_efficiency = (total_task_time / (kw_num_stations * waktu_siklus)) * 100
+            
+            # 2. Metode Helgeson-Birnie (Ranked Positional Weight)
+            # Menghitung bobot posisional untuk setiap tugas
+            rpw = {}
+            for task in tasks:
+                # Bobot tugas itu sendiri
+                weight = task_times[task]
+                
+                # Tambahkan bobot successor
+                visited = set()
+                successors_to_process = list(G.successors(task))
+                
+                while successors_to_process:
+                    succ = successors_to_process.pop(0)
+                    if succ not in visited:
+                        weight += task_times[succ]
+                        visited.add(succ)
+                        successors_to_process.extend([s for s in G.successors(succ) if s not in visited])
+                
+                rpw[task] = weight
+            
+            # Urutkan tugas berdasarkan RPW (dari terbesar ke terkecil)
+            rpw_ordered_tasks = sorted(tasks, key=lambda t: rpw[t], reverse=True)
+            
+            # Assign tugas ke workstation
+            hb_workstations = []
+            hb_current_station = []
+            hb_current_time = 0
+            
+            for task in rpw_ordered_tasks:
+                # Periksa preseden
+                if not all(pred in [t for station, _ in hb_workstations for t in station] + hb_current_station for pred in predecessors[task]):
+                    continue
+                    
+                if hb_current_time + task_times[task] <= waktu_siklus:
+                    hb_current_station.append(task)
+                    hb_current_time += task_times[task]
+                else:
+                    hb_workstations.append((hb_current_station.copy(), hb_current_time))
+                    hb_current_station = [task]
+                    hb_current_time = task_times[task]
+            
+            if hb_current_station:
+                hb_workstations.append((hb_current_station, hb_current_time))
+            
+            # Menghitung efisiensi Helgeson-Birnie
+            hb_num_stations = len(hb_workstations)
+            hb_efficiency = (total_task_time / (hb_num_stations * waktu_siklus)) * 100
+            
+            # 3. Metode Regional Approach
+            # Mengelompokkan tugas berdasarkan region (simplifikasi: A+B+C, D+E, F+G)
+            regions = {
+                0: ['A', 'B', 'C'],
+                1: ['D', 'E'],
+                2: ['F', 'G']
+            }
+            
+            # Urutkan tugas berdasarkan region dan waktu
+            ra_ordered_tasks = []
+            for region_idx in range(3):
+                region_tasks = regions.get(region_idx, [])
+                region_tasks.sort(key=lambda t: task_times[t], reverse=True)
+                ra_ordered_tasks.extend(region_tasks)
+            
+            # Assign tugas ke workstation
+            ra_workstations = []
+            ra_current_station = []
+            ra_current_time = 0
+            
+            # Kumpulkan tugas yang sudah diassign
+            assigned = set()
+            
+            for task in ra_ordered_tasks:
+                # Periksa preseden
+                if not all(pred in assigned for pred in predecessors[task]):
+                    continue
+                    
+                if ra_current_time + task_times[task] <= waktu_siklus:
+                    ra_current_station.append(task)
+                    ra_current_time += task_times[task]
+                    assigned.add(task)
+                else:
+                    ra_workstations.append((ra_current_station.copy(), ra_current_time))
+                    ra_current_station = [task]
+                    ra_current_time = task_times[task]
+                    assigned.add(task)
+            
+            if ra_current_station:
+                ra_workstations.append((ra_current_station, ra_current_time))
+            
+            # Menghitung efisiensi Regional Approach
+            ra_num_stations = len(ra_workstations)
+            ra_efficiency = (total_task_time / (ra_num_stations * waktu_siklus)) * 100
+            
+            # 4. Metode Largest Candidate Rule
+            # Urutkan tugas berdasarkan waktu (dari terbesar ke terkecil)
+            lcr_ordered_tasks = sorted(tasks, key=lambda t: task_times[t], reverse=True)
+            
+            # Assign tugas ke workstation
+            lcr_workstations = []
+            lcr_current_station = []
+            lcr_current_time = 0
+            
+            # Kumpulkan tugas yang sudah diassign
+            assigned = set()
+            
+            for _ in range(len(tasks)):  # Loop sampai semua tugas terassign
+                for task in lcr_ordered_tasks:
+                    if task in assigned:
+                        continue
+                        
+                    # Periksa preseden
+                    if not all(pred in assigned for pred in predecessors[task]):
+                        continue
+                        
+                    if lcr_current_time + task_times[task] <= waktu_siklus:
+                        lcr_current_station.append(task)
+                        lcr_current_time += task_times[task]
+                        assigned.add(task)
+                
+                # Jika ada tugas yang diassign atau semua tugas sudah selesai
+                if lcr_current_station or len(assigned) == len(tasks):
+                    if lcr_current_station:  # Skip stasiun kosong
+                        lcr_workstations.append((lcr_current_station.copy(), lcr_current_time))
+                    lcr_current_station = []
+                    lcr_current_time = 0
+                
+                # Keluar jika semua tugas sudah diassign
+                if len(assigned) == len(tasks):
+                    break
+            
+            # Menghitung efisiensi Largest Candidate Rule
+            lcr_num_stations = len(lcr_workstations)
+            lcr_efficiency = (total_task_time / (lcr_num_stations * waktu_siklus)) * 100
+            
+            # Menentukan metode terbaik
+            efficiencies = {
+                'Kilbridge-Weston': kw_efficiency,
+                'Helgeson-Birnie': hb_efficiency,
+                'Regional Approach': ra_efficiency,
+                'Largest Candidate Rule': lcr_efficiency
+            }
+            
+            best_method = max(efficiencies, key=efficiencies.get)
+            
+            # Mapping untuk jumlah workstation
+            num_stations = {
+                'Kilbridge-Weston': kw_num_stations,
+                'Helgeson-Birnie': hb_num_stations,
+                'Regional Approach': ra_num_stations,
+                'Largest Candidate Rule': lcr_num_stations
+            }
+            
+            # Mapping untuk workstation assignments
+            workstation_assignments = {
+                'Kilbridge-Weston': kw_workstations,
+                'Helgeson-Birnie': hb_workstations,
+                'Regional Approach': ra_workstations,
+                'Largest Candidate Rule': lcr_workstations
+            }
+            
+            # Hasil untuk interpretasi
+            hasil = {
+                'jumlah_workstation': num_stations,
+                'efisiensi': efficiencies,
+                'perbandingan': {
+                    'best_method': best_method,
+                    'best_efficiency': efficiencies[best_method]
+                },
+                'penugasan': workstation_assignments
+            }
+            
+            # Tampilkan hasil
+            st.subheader("Hasil Penyeimbangan Lini")
+            
+            # Tampilkan informasi dasar
+            st.write(f"**Total waktu tugas:** {total_task_time} detik")
+            st.write(f"**Waktu siklus:** {waktu_siklus} detik")
+            st.write(f"**Jumlah workstation teoritis minimal:** {min_workstations}")
+            
+            # Tampilkan perbandingan metode
+            comp_data = []
+            for method, eff in efficiencies.items():
+                comp_data.append({
+                    'Metode': method,
+                    'Jumlah Workstation': num_stations[method],
+                    'Efisiensi (%)': f"{eff:.2f}%",
+                    'Balance Delay (%)': f"{100 - eff:.2f}%"
+                })
+                
+            comp_df = pd.DataFrame(comp_data)
+            st.dataframe(comp_df)
+            
+            # Highlight metode terbaik
+            st.success(f"**Metode terbaik: {best_method}** dengan efisiensi {efficiencies[best_method]:.2f}% dan {num_stations[best_method]} workstation")
+            
+            # Visualisasi perbandingan efisiensi
+            fig, ax = plt.subplots(figsize=(10, 6))
+            
+            methods = list(efficiencies.keys())
+            effs = [efficiencies[m] for m in methods]
+            
+            bars = ax.bar(methods, effs, color=['blue', 'green', 'orange', 'red'])
+            
+            # Highlight metode terbaik
+            best_idx = methods.index(best_method)
+            bars[best_idx].set_color('gold')
+            
+            # Tambahkan label nilai
+            for i, bar in enumerate(bars):
+                height = bar.get_height()
+                ax.text(bar.get_x() + bar.get_width()/2., height + 1, f'{height:.2f}%', ha='center')
+            
+            ax.set_title('Perbandingan Efisiensi Metode Penyeimbangan Lini')
+            ax.set_ylabel('Efisiensi (%)')
+            ax.set_ylim(0, 110)  # Set y-axis to have some space above the bars
+            
+            plt.xticks(rotation=45)
+            plt.tight_layout()
+            st.pyplot(fig)
+            
+            # Visualisasi perbandingan jumlah workstation
+            fig, ax = plt.subplots(figsize=(10, 6))
+            
+            stations = [num_stations[m] for m in methods]
+            
+            bars = ax.bar(methods, stations, color=['blue', 'green', 'orange', 'red'])
+            
+            # Highlight metode terbaik
+            best_idx = methods.index(best_method)
+            bars[best_idx].set_color('gold')
+            
+            # Tambahkan label nilai
+            for i, bar in enumerate(bars):
+                height = bar.get_height()
+                ax.text(bar.get_x() + bar.get_width()/2., height + 0.1, f'{height}', ha='center')
+            
+            ax.axhline(y=min_workstations, color='black', linestyle='--', label=f'Teoritis Minimal ({min_workstations})')
+            
+            ax.set_title('Perbandingan Jumlah Workstation')
+            ax.set_ylabel('Jumlah Workstation')
+            ax.set_ylim(0, max(stations) + 1)  # Set y-axis to have some space above the bars
+            
+            plt.xticks(rotation=45)
+            plt.legend()
+            plt.tight_layout()
+            st.pyplot(fig)
+            
+            # Tampilkan detail hasil tiap metode
+            st.subheader("Detail Penugasan Workstation")
+            
+            # Pilih metode untuk ditampilkan
+            selected_method = st.selectbox("Pilih metode untuk melihat detail:", methods)
+            
+            # Tampilkan workstation assignments untuk metode yang dipilih
+            st.write(f"**Detail Workstations untuk {selected_method}:**")
+            
+            ws_assignments = workstation_assignments[selected_method]
+            for i, (tasks, time) in enumerate(ws_assignments):
+                st.write(f"Workstation {i+1}: {', '.join(tasks)} (Total waktu: {time} detik, Idle: {waktu_siklus - time} detik)")
+            
+            # Visualisasi workload distribution
+            st.subheader("Visualisasi Distribusi Beban Kerja")
+            
+            fig, ax = plt.subplots(figsize=(12, 6))
+            
+            ws_labels = [f'WS {i+1}' for i in range(len(ws_assignments))]
+            ws_times = [time for _, time in ws_assignments]
+            idle_times = [waktu_siklus - time for _, time in ws_assignments]
+            
+            # Plot beban kerja
+            ax.bar(ws_labels, ws_times, color='blue', label='Waktu Kerja')
+            
+            # Plot idle time
+            ax.bar(ws_labels, idle_times, bottom=ws_times, color='red', alpha=0.7, label='Waktu Idle')
+            
+            # Tambahkan garis untuk cycle time
+            ax.axhline(y=waktu_siklus, color='green', linestyle='--', label=f'Waktu Siklus ({waktu_siklus} detik)')
+            
+            # Tambahkan label nilai
+            for i, (work_time, idle_time) in enumerate(zip(ws_times, idle_times)):
+                ax.text(i, work_time/2, f'{work_time}s', ha='center', va='center', color='white', fontweight='bold')
+                if idle_time > 0:
+                    ax.text(i, work_time + idle_time/2, f'{idle_time}s', ha='center', va='center')
+            
+            ax.set_title(f'Distribusi Beban Kerja untuk {selected_method}')
+            ax.set_ylabel('Waktu (detik)')
+            ax.set_ylim(0, waktu_siklus * 1.2)
+            ax.legend()
+            
+            plt.tight_layout()
+            st.pyplot(fig)
+            
+            # Interpretasi dengan API
+            st.subheader("Interpretasi Penyeimbangan Lini")
+            with st.container():
+                if model:
+                    st.markdown(interpretasi_line_balancing(model, hasil))
+                else:
+                    st.warning("API Key belum dimasukkan atau gagal terhubung.")
 
 # Aplikasi utama
 def main():
