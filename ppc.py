@@ -1151,7 +1151,758 @@ def selesaikan_masalah_3():
 # Masalah 4: Jadwal Produksi Induk
 # Masalah 4: Jadwal Produksi Induk (MPS) dengan Metode Bitran Hax
 # Masalah 4: Jadwal Produksi Induk (MPS) dengan Metode Bitran Hax
+# Terintegrasi Winter's Method dengan MPS
 def selesaikan_masalah_4():
+    st.header("Masalah 4: Jadwal Produksi Induk (MPS) dengan Winter's Method")
+    
+    # Pilihan metode
+    metode_options = ["Bitran Hax Standard", "Winter-MPS Terintegrasi", "Hybrid Approach"]
+    metode_selected = st.radio("Pilih Metode MPS:", metode_options)
+    
+    if metode_selected in ["Winter-MPS Terintegrasi", "Hybrid Approach"]:
+        st.info(f"Menggunakan pendekatan {metode_selected} yang menggabungkan peramalan Winter's Method dengan MPS")
+    
+    # Tambahkan rumus dan penjelasan
+    with st.expander("Penjelasan Metode", expanded=True):
+        st.subheader("Metode Bitran Hax Standard")
+        st.write("Metode Bitran Hax adalah pendekatan dua tahap untuk membuat jadwal produksi induk:")
+        
+        st.latex(r"\min \sum_{i \in F} C_i Y_i")
+        st.latex(r"\text{s.t. } \sum_{i \in F} P_i \leq P^T")
+        st.latex(r"L_i \leq P_i \leq U_i, \forall i \in F")
+        st.latex(r"Y_i = \begin{cases} 1 & \text{jika } P_i > 0 \\ 0 & \text{jika } P_i = 0 \end{cases}")
+        
+        st.subheader("Winter's Method (Triple Exponential Smoothing)")
+        st.write("Winter's Method menggunakan tiga persamaan penghalusan untuk meramalkan permintaan dengan pola musiman:")
+        
+        # Level
+        st.latex(r"S_t = \alpha \frac{Y_t}{I_{t-L}} + (1-\alpha)(S_{t-1} + T_{t-1})")
+        # Trend
+        st.latex(r"T_t = \beta(S_t - S_{t-1}) + (1-\beta)T_{t-1}")
+        # Seasonal
+        st.latex(r"I_t = \gamma\frac{Y_t}{S_t} + (1-\gamma)I_{t-L}")
+        # Forecast
+        st.latex(r"F_{t+m} = (S_t + mT_t)I_{t-L+m}")
+        
+        st.subheader("Pendekatan Winter-MPS Terintegrasi")
+        st.write("""
+        Pendekatan Winter-MPS Terintegrasi mengintegrasikan Winter's Method langsung ke dalam proses MPS dengan cara:
+        
+        1. **Peramalan Multi-Periode**: Menggunakan Winter's Method untuk meramalkan permintaan selama horizon perencanaan MPS.
+        
+        2. **Perhitungan Dynamic Safety Stock**: Safety stock disesuaikan berdasarkan komponen musiman (seasonal) dan variabilitas dari Winter's Method.
+        
+        3. **Kapasitas Adaptif**: Alokasi kapasitas produksi dimodifikasi berdasarkan ekspektasi musiman.
+        
+        4. **Net Requirement dengan Seasonal Adjustment**: Perhitungan kebutuhan bersih (Net Requirement) memperhitungkan indeks musiman.
+        """)
+        
+        st.subheader("Perhitungan Dynamic Safety Stock")
+        st.latex(r"SS_i = z \times \sigma_i \times \sqrt{L} \times \frac{I_{t+L}}{I_{avg}}")
+        st.write("dimana:")
+        st.write("- $SS_i$ = Safety stock untuk item $i$")
+        st.write("- $z$ = Faktor service level (umumnya 1.65 untuk 95% service level)")
+        st.write("- $\\sigma_i$ = Standar deviasi permintaan item $i$")
+        st.write("- $L$ = Lead time")
+        st.write("- $I_{t+L}$ = Indeks musiman saat lead time")
+        st.write("- $I_{avg}$ = Rata-rata indeks musiman")
+    
+    # Parameter Winter's Method
+    if metode_selected in ["Winter-MPS Terintegrasi", "Hybrid Approach"]:
+        st.subheader("Parameter Winter's Method")
+        col1, col2, col3 = st.columns(3)
+        alpha_w = col1.slider("α (Level)", 0.0, 1.0, 0.25, 0.01)
+        beta_w = col2.slider("β (Trend)", 0.0, 1.0, 0.12, 0.01)
+        gamma_w = col3.slider("γ (Seasonal)", 0.0, 1.0, 0.08, 0.01)
+        
+        col1, col2 = st.columns(2)
+        season_length = col1.number_input("Panjang Musiman", value=3, min_value=2, max_value=12, step=1)
+        confidence_level = col2.slider("Service Level (%)", 90.0, 99.9, 95.0, 0.1)
+        
+        # Convert confidence level to z-score (common approximation)
+        z_score = 1.65  # Default for 95%
+        if confidence_level >= 99.0:
+            z_score = 2.33
+        elif confidence_level >= 98.0:
+            z_score = 2.05
+        elif confidence_level >= 97.0:
+            z_score = 1.88
+        elif confidence_level >= 96.0:
+            z_score = 1.75
+        elif confidence_level >= 95.0:
+            z_score = 1.65
+        elif confidence_level >= 90.0:
+            z_score = 1.28
+    
+    # Input data
+    with st.expander("Data Produksi dan Permintaan", expanded=True):
+        # Input rencana produksi agregat
+        st.subheader("Rencana Produksi Agregat 2025 (ribu unit)")
+        col1, col2, col3, col4 = st.columns(4)
+        prod_jan = col1.number_input("Januari", value=98.3, step=0.1)
+        prod_feb = col2.number_input("Februari", value=97.0, step=0.1)
+        prod_mar = col3.number_input("Maret", value=105.3, step=0.1)
+        prod_apr = col4.number_input("April", value=114.1, step=0.1)
+        
+        # Data historis untuk Winter's Method
+        if metode_selected in ["Winter-MPS Terintegrasi", "Hybrid Approach"]:
+            st.subheader("Data Historis untuk Peramalan (ribu unit)")
+            col1, col2, col3 = st.columns(3)
+            hist_oct = col1.number_input("Oktober 2024", value=90.5, step=0.1)
+            hist_nov = col2.number_input("November 2024", value=95.2, step=0.1)
+            hist_dec = col3.number_input("Desember 2024", value=102.1, step=0.1)
+        
+        # Data default untuk faktor konversi dan safety stock
+        data_produk_default = {
+            'Famili': ['Roti Hamburger', 'Roti Hamburger', 'Roti Hamburger', 
+                      'Roti Hotdog', 'Roti Hotdog',
+                      'Roti Bagel', 'Roti Bagel'],
+            'Item': ['White', 'Wijen', 'WholeGrain', 'Plain', 'Garlic', 'Savory', 'Sweet'],
+            'Konversi': [0.2, 0.3, 0.4, 0.15, 0.2, 0.1, 0.15],
+            'Safety Stock': [120, 60, 45, 90, 80, 75, 50],
+            'StdDev': [15, 12, 8, 14, 10, 9, 11]  # Standar deviasi permintaan untuk perhitungan safety stock
+        }
+        
+        # Tabel kebijakan produksi
+        st.subheader("Kebijakan Produksi")
+        df_kebijakan = pd.DataFrame(data_produk_default)
+        edited_kebijakan = st.data_editor(df_kebijakan, use_container_width=True)
+        
+        # Data perkiraan permintaan
+        data_permintaan_default = {
+            'Item': ['White', 'Wijen', 'WholeGrain', 'Plain', 'Garlic', 'Savory', 'Sweet'],
+            'Inventory Des': [335.2, 148.7, 57.5, 280.4, 96.2, 101, 121],
+            'Jan': [210.6, 84.0, 15.4, 175.2, 27.2, 20.7, 65.3],
+            'Feb': [172.0, 74.8, 16.0, 198.0, 17.6, 22.8, 71.8],
+            'Mar': [255.2, 88.8, 16.8, 178.0, 22.0, 29.6, 93.4],
+            'Apr': [360.0, 57.6, 19.2, 128.0, 36.0, 44.4, 140.1]
+        }
+        
+        # Data historis untuk item (untuk peramalan)
+        if metode_selected in ["Winter-MPS Terintegrasi", "Hybrid Approach"]:
+            hist_permintaan_default = {
+                'Item': ['White', 'Wijen', 'WholeGrain', 'Plain', 'Garlic', 'Savory', 'Sweet'],
+                'Oct': [190.2, 75.6, 14.0, 160.7, 25.0, 18.5, 60.1],
+                'Nov': [200.5, 80.1, 14.8, 168.3, 26.3, 19.6, 62.8],
+                'Dec': [205.8, 82.3, 15.1, 172.4, 26.8, 20.2, 64.0]
+            }
+            st.subheader("Data Historis Permintaan per Item (ribu unit)")
+            df_hist_permintaan = pd.DataFrame(hist_permintaan_default)
+            edited_hist_permintaan = st.data_editor(df_hist_permintaan, use_container_width=True)
+        
+        # Tabel perkiraan permintaan
+        st.subheader("Perkiraan Permintaan (ribu unit)")
+        df_permintaan = pd.DataFrame(data_permintaan_default)
+        edited_permintaan = st.data_editor(df_permintaan, use_container_width=True)
+        
+        # Biaya setup
+        st.subheader("Biaya Setup (Miliar Rupiah)")
+        col1, col2, col3 = st.columns(3)
+        setup_hamburger = col1.number_input("Roti Hamburger", value=9, step=1)
+        setup_hotdog = col2.number_input("Roti Hotdog", value=4, step=1)
+        setup_bagel = col3.number_input("Roti Bagel", value=6, step=1)
+        
+        # Parameter batas atas
+        st.subheader("Parameter Batas Atas")
+        n_param = st.number_input("Nilai N untuk batas atas", value=2, min_value=1, max_value=4, step=1)
+    
+    # Tombol untuk menjalankan perhitungan
+    if st.button("Selesaikan Masalah 4"):
+        with st.spinner("Menghitung Jadwal Produksi Induk..."):
+            # 1. Mengumpulkan data dari input
+            items = edited_kebijakan['Item'].tolist()
+            families = edited_kebijakan['Famili'].tolist()
+            konversi = edited_kebijakan['Konversi'].tolist()
+            safety_stock_original = edited_kebijakan['Safety Stock'].tolist()
+            std_dev = edited_kebijakan['StdDev'].tolist()
+            
+            # Inventori awal dan permintaan
+            inv_awal = edited_permintaan['Inventory Des'].tolist()
+            permintaan_jan_original = edited_permintaan['Jan'].tolist()
+            permintaan_feb = edited_permintaan['Feb'].tolist()
+            permintaan_mar = edited_permintaan['Mar'].tolist()
+            
+            # Buat salinan permintaan yang dapat dimodifikasi
+            permintaan_jan = permintaan_jan_original.copy()
+            safety_stock = safety_stock_original.copy()
+            
+            # Proses Winter's Method jika diperlukan
+            seasonal_indices = None
+            forecasted_permintaan = None
+            dynamic_safety_stock = None
+            
+            if metode_selected in ["Winter-MPS Terintegrasi", "Hybrid Approach"]:
+                st.subheader("Hasil Peramalan Winter's Method")
+                
+                # Implementasi Winter's method
+                def winters_method(series, alpha, beta, gamma, season_length, forecast_horizon=4):
+                    """
+                    Implementasi Triple Exponential Smoothing (Winter's Method)
+                    """
+                    n = len(series)
+                    if n <= 2 * season_length:
+                        return series[-1] * np.ones(forecast_horizon), None, None, None
+                    
+                    # Inisialisasi
+                    result = np.zeros(n + forecast_horizon)
+                    smooth = np.zeros(n)
+                    trend = np.zeros(n)
+                    seasonal = np.zeros(n + forecast_horizon)
+                    
+                    # Inisialisasi nilai awal
+                    smooth[0] = series[0]
+                    trend[0] = (series[season_length] - series[0]) / season_length
+                    
+                    # Inisialisasi seasonal indices
+                    season_averages = [0] * season_length
+                    for i in range(season_length):
+                        for j in range(n // season_length):
+                            if i + j * season_length < n:
+                                season_averages[i] += series[i + j * season_length]
+                        season_averages[i] /= (n // season_length)
+                    
+                    overall_average = sum(season_averages) / season_length
+                    
+                    for i in range(season_length):
+                        seasonal[i] = season_averages[i] / overall_average if overall_average != 0 else 1.0
+                    
+                    # Peramalan untuk data historis
+                    for i in range(1, n):
+                        s_idx = i % season_length
+                        if i - season_length >= 0:
+                            smooth[i] = alpha * (series[i] / seasonal[i - season_length]) + (1 - alpha) * (smooth[i-1] + trend[i-1])
+                            trend[i] = beta * (smooth[i] - smooth[i-1]) + (1 - beta) * trend[i-1]
+                            seasonal[i] = gamma * (series[i] / smooth[i]) + (1 - gamma) * seasonal[i - season_length]
+                            result[i] = (smooth[i-1] + trend[i-1]) * seasonal[i - season_length]
+                        else:
+                            smooth[i] = alpha * series[i] + (1 - alpha) * (smooth[i-1] + trend[i-1])
+                            trend[i] = beta * (smooth[i] - smooth[i-1]) + (1 - beta) * trend[i-1]
+                            seasonal[i] = seasonal[s_idx]  # Use initial seasonal indices
+                            result[i] = smooth[i-1] + trend[i-1]
+                    
+                    # Peramalan untuk periode ke depan
+                    for i in range(n, n + forecast_horizon):
+                        m = i - n + 1
+                        s_idx = (i % season_length)
+                        if i - season_length >= 0:
+                            seasonal[i] = seasonal[i - season_length]
+                        else:
+                            seasonal[i] = seasonal[s_idx]
+                        result[i] = (smooth[n-1] + m * trend[n-1]) * seasonal[i]
+                    
+                    return result[n:n + forecast_horizon], smooth[n-1], trend[n-1], seasonal[n:n + forecast_horizon]
+                
+                # Peramalan untuk data agregat
+                hist_agregat = [hist_oct, hist_nov, hist_dec, prod_jan]
+                forecast_agregat, level_agregat, trend_agregat, seasonal_indices_agregat = winters_method(
+                    np.array(hist_agregat), 
+                    alpha_w, 
+                    beta_w, 
+                    gamma_w, 
+                    int(season_length)
+                )
+                
+                # Visualisasi peramalan agregat
+                st.subheader("Peramalan Produksi Agregat")
+                
+                # Data historis dan peramalan
+                periods = ["Oct", "Nov", "Dec", "Jan", "Feb", "Mar", "Apr", "May"]
+                historical_values = hist_agregat
+                forecast_values = list(hist_agregat) + list(forecast_agregat)
+                
+                # Plot
+                fig, ax = plt.subplots(figsize=(12, 6))
+                ax.plot(periods[:4], historical_values, 'o-', color='blue', label='Data Historis')
+                ax.plot(periods[3:], forecast_values[3:], 's--', color='red', label='Peramalan')
+                
+                # Tambahkan titik pertemuan
+                ax.plot(periods[3], historical_values[3], 'o', color='purple', markersize=10, label='Titik Pertemuan')
+                
+                # Tambahkan label nilai
+                for i, period in enumerate(periods[:4]):
+                    ax.text(period, historical_values[i] + 2, f'{historical_values[i]:.1f}', ha='center')
+                
+                for i, period in enumerate(periods[3:]):
+                    ax.text(period, forecast_values[i+3] + 2, f'{forecast_values[i+3]:.1f}', ha='center')
+                
+                ax.set_title('Peramalan Produksi Agregat dengan Winter\'s Method')
+                ax.set_xlabel('Periode')
+                ax.set_ylabel('Produksi (ribu unit)')
+                ax.grid(True, alpha=0.3)
+                ax.legend()
+                
+                st.pyplot(fig)
+                
+                # Penjelasan metrik peramalan
+                st.subheader("Metrik Peramalan")
+                col1, col2, col3 = st.columns(3)
+                col1.metric("Level Akhir", f"{level_agregat:.2f}")
+                col2.metric("Trend Akhir", f"{trend_agregat:.2f}")
+                col3.metric("Indeks Musiman Feb", f"{seasonal_indices_agregat[0]:.2f}")
+                
+                # Peramalan untuk setiap item
+                if "edited_hist_permintaan" in locals():
+                    # Ambil data historis item
+                    forecasted_permintaan = {}
+                    seasonal_indices = {}
+                    dynamic_safety_stock = {}
+                    
+                    for i, item in enumerate(items):
+                        hist_item = [
+                            edited_hist_permintaan.loc[edited_hist_permintaan['Item'] == item, 'Oct'].values[0],
+                            edited_hist_permintaan.loc[edited_hist_permintaan['Item'] == item, 'Nov'].values[0],
+                            edited_hist_permintaan.loc[edited_hist_permintaan['Item'] == item, 'Dec'].values[0],
+                            edited_permintaan.loc[edited_permintaan['Item'] == item, 'Jan'].values[0]
+                        ]
+                        
+                        # Jalankan Winter's method untuk item
+                        forecast_item, level_item, trend_item, seasonal_item = winters_method(
+                            np.array(hist_item), 
+                            alpha_w, 
+                            beta_w, 
+                            gamma_w, 
+                            int(season_length)
+                        )
+                        
+                        forecasted_permintaan[item] = forecast_item
+                        seasonal_indices[item] = seasonal_item
+                        
+                        # Hitung dynamic safety stock berdasarkan seasonal index
+                        lead_time = 1  # Asumsi lead time 1 bulan
+                        seasonal_factor = seasonal_item[0] / np.mean(seasonal_item)
+                        dynamic_ss = z_score * std_dev[i] * np.sqrt(lead_time) * seasonal_factor
+                        dynamic_safety_stock[item] = dynamic_ss
+                    
+                    # Tabel hasil peramalan item
+                    forecast_data = []
+                    for i, item in enumerate(items):
+                        forecast_data.append({
+                            'Item': item,
+                            'Permintaan Asli Jan': permintaan_jan_original[i],
+                            'Peramalan Jan': forecasted_permintaan[item][0],
+                            'Peramalan Feb': forecasted_permintaan[item][1],
+                            'Peramalan Mar': forecasted_permintaan[item][2],
+                            'Safety Stock Asli': safety_stock_original[i],
+                            'Safety Stock Dinamis': dynamic_safety_stock[item]
+                        })
+                    
+                    forecast_df = pd.DataFrame(forecast_data)
+                    st.dataframe(forecast_df)
+                    
+                    # Modifikasi permintaan dan safety stock berdasarkan pendekatan yang dipilih
+                    if metode_selected == "Winter-MPS Terintegrasi":
+                        # Gunakan hasil peramalan sebagai permintaan
+                        for i, item in enumerate(items):
+                            permintaan_jan[i] = forecasted_permintaan[item][0]
+                            safety_stock[i] = dynamic_safety_stock[item]
+                        
+                        st.success("Menggunakan hasil peramalan Winter's Method untuk permintaan Januari dan dynamic safety stock")
+                    
+                    elif metode_selected == "Hybrid Approach":
+                        # Gunakan rata-rata peramalan dan permintaan asli
+                        for i, item in enumerate(items):
+                            permintaan_jan[i] = (permintaan_jan_original[i] + forecasted_permintaan[item][0]) / 2
+                            safety_stock[i] = (safety_stock_original[i] + dynamic_safety_stock[item]) / 2
+                        
+                        st.success("Menggunakan pendekatan hybrid (rata-rata peramalan dan permintaan asli)")
+            
+            # Biaya setup per famili
+            setup_costs = {
+                'Roti Hamburger': setup_hamburger,
+                'Roti Hotdog': setup_hotdog,
+                'Roti Bagel': setup_bagel
+            }
+            
+            # 2. Implementasi Metode Bitran Hax
+            # Langkah 1: Hitung batas atas dan bawah untuk setiap produk
+            
+            # Fungsi untuk menghitung net requirement
+            def hitung_net_req(inv_awal, permintaan, ss):
+                net_req = max(0, permintaan + ss - inv_awal)
+                return net_req
+            
+            # Hitung batas bawah (NetReq untuk Jan)
+            batas_bawah = []
+            for i in range(len(items)):
+                net_req_jan = hitung_net_req(inv_awal[i], permintaan_jan[i], safety_stock[i])
+                
+                # Jika menggunakan seasonal index dan terintegrasi
+                if metode_selected == "Winter-MPS Terintegrasi" and seasonal_indices:
+                    # Sesuaikan batas bawah berdasarkan seasonal index
+                    seasonal_factor = seasonal_indices[items[i]][0]
+                    net_req_jan = net_req_jan * seasonal_factor
+                
+                batas_bawah.append(net_req_jan)
+            
+            # Hitung batas atas (NetReq untuk Jan + Feb atau lebih)
+            batas_atas = []
+            for i in range(len(items)):
+                # Batas atas dengan N=n_param bulan ke depan
+                if metode_selected in ["Winter-MPS Terintegrasi", "Hybrid Approach"] and forecasted_permintaan:
+                    # Gunakan hasil peramalan untuk batas atas
+                    total_demand = 0
+                    for j in range(min(n_param, 3)):  # Batasi pada 3 bulan ke depan
+                        total_demand += forecasted_permintaan[items[i]][j]
+                else:
+                    total_demand = permintaan_jan[i]
+                    
+                    if n_param >= 2:
+                        total_demand += permintaan_feb[i]
+                        
+                    if n_param >= 3:
+                        total_demand += permintaan_mar[i]
+                
+                net_req_total = hitung_net_req(inv_awal[i], total_demand, safety_stock[i])
+                batas_atas.append(net_req_total)
+            
+            # Langkah 2: Agregasi batas bawah dan atas per famili
+            unique_families = list(set(families))
+            family_lb = {fam: 0 for fam in unique_families}
+            family_ub = {fam: 0 for fam in unique_families}
+            
+            for i, fam in enumerate(families):
+                family_lb[fam] += batas_bawah[i]
+                family_ub[fam] += batas_atas[i]
+            
+            # Langkah 3: Alokasi kapasitas agregat ke famili (Tahap 1 Bitran Hax)
+            # Pendekatan prioritas berdasarkan biaya setup
+            
+            # Buat daftar famili berdasarkan prioritas (biaya setup tertinggi)
+            priority_families = sorted(unique_families, key=lambda x: setup_costs[x], reverse=True)
+            
+            # Alokasi kapasitas tersisa ke famili
+            remaining_capacity = prod_jan * 1000  # konversi dari ribu unit ke unit
+            family_alloc = {fam: 0 for fam in unique_families}
+            
+            # Pertama, penuhi semua batas bawah
+            for fam in priority_families:
+                family_alloc[fam] = family_lb[fam]
+                remaining_capacity -= family_lb[fam]
+            
+            # Kemudian, prioritaskan alokasi ke batas atas mulai dari prioritas tertinggi
+            for fam in priority_families:
+                additional_alloc = min(remaining_capacity, family_ub[fam] - family_lb[fam])
+                family_alloc[fam] += additional_alloc
+                remaining_capacity -= additional_alloc
+            
+            # Langkah 4: Alokasi dari famili ke item (Tahap 2 Bitran Hax)
+            # Proportional allocation based on conversion rates
+            item_alloc = {}
+            
+            for i, item in enumerate(items):
+                fam = families[i]
+                
+                # Pastikan batas bawah item terpenuhi
+                item_alloc[item] = batas_bawah[i]
+                
+                # Jika masih ada kapasitas tersisa untuk famili, alokasikan berdasarkan proporsi
+                remaining_family_cap = family_alloc[fam] - sum([batas_bawah[j] for j, f in enumerate(families) if f == fam])
+                
+                if remaining_family_cap > 0:
+                    # Hitung proporsi konversi untuk semua item dalam famili
+                    family_items_idx = [j for j, f in enumerate(families) if f == fam]
+                    family_konversi = [konversi[j] for j in family_items_idx]
+                    total_konversi = sum(family_konversi)
+                    
+                    # Alokasikan berdasarkan proporsi
+                    item_konversi_proportion = konversi[i] / total_konversi
+                    
+                    # Jika menggunakan Winter, sesuaikan alokasi berdasarkan seasonal index
+                    if metode_selected == "Winter-MPS Terintegrasi" and seasonal_indices:
+                        seasonal_factor = seasonal_indices[item][0] / sum([seasonal_indices[items[j]][0] for j in family_items_idx])
+                        item_konversi_proportion = item_konversi_proportion * seasonal_factor
+                    
+                    item_additional = min(
+                        remaining_family_cap * item_konversi_proportion,
+                        batas_atas[i] - batas_bawah[i]
+                    )
+                    item_alloc[item] += item_additional
+            
+            # Langkah 5: Hitung nilai akhir MPS dan inventori akhir
+            mps_januari = {}
+            inv_akhir_jan = {}
+            
+            for i, item in enumerate(items):
+                # Pembulatan ke atas untuk memastikan safety stock terpenuhi
+                mps_januari[item] = round(item_alloc[item])
+                
+                # Hitung inventori akhir
+                inv_akhir_jan[item] = inv_awal[i] + mps_januari[item] - permintaan_jan[i]
+            
+            # Evaluasi hasil
+            # Cek apakah safety stock terpenuhi
+            safety_stock_terpenuhi = {}
+            for i, item in enumerate(items):
+                safety_stock_terpenuhi[item] = inv_akhir_jan[item] >= safety_stock[i]
+            
+            # Hitung total biaya setup
+            total_setup_cost = sum([setup_costs[fam] for fam in unique_families if sum([mps_januari[item] for i, item in enumerate(items) if families[i] == fam]) > 0])
+            
+            # Hitung kebutuhan kapasitas
+            kebutuhan_kapasitas = sum([mps_januari[item] * konversi[i] for i, item in enumerate(items)])
+            
+            # Kumpulkan hasil untuk interpretasi
+            hasil = {
+                'mps_januari': mps_januari,
+                'safety_stock_terpenuhi': safety_stock_terpenuhi,
+                'setup_cost': total_setup_cost,
+                'kebutuhan_kapasitas': kebutuhan_kapasitas,
+                'inv_akhir_jan': inv_akhir_jan,
+                'metode': metode_selected,
+                'used_winters': metode_selected in ["Winter-MPS Terintegrasi", "Hybrid Approach"]
+            }
+            
+            # Tampilkan hasil
+            st.subheader(f"Jadwal Produksi Induk Januari 2025 ({metode_selected})")
+            
+            # Tabel MPS
+            mps_data = []
+            for i, item in enumerate(items):
+                mps_data.append({
+                    'Famili': families[i],
+                    'Item': item,
+                    'Konversi': konversi[i],
+                    'Safety Stock': safety_stock[i],
+                    'Inventori Awal': inv_awal[i],
+                    'Permintaan': permintaan_jan[i],
+                    'Net Requirement': batas_bawah[i],
+                    'Batas Atas': batas_atas[i],
+                    'MPS Januari': mps_januari[item],
+                    'Inventori Akhir': inv_akhir_jan[item],
+                    'SS Terpenuhi': 'Ya' if safety_stock_terpenuhi[item] else 'Tidak'
+                })
+            
+            mps_df = pd.DataFrame(mps_data)
+            st.dataframe(mps_df)
+            
+            # Jika menggunakan Winter, bandingkan dengan MPS standard
+            if metode_selected in ["Winter-MPS Terintegrasi", "Hybrid Approach"] and "permintaan_jan_original" in locals():
+                st.subheader("Perbandingan MPS dengan Metode Standar")
+                
+                # Hitung MPS standard untuk perbandingan
+                # Penggunaan fungsi sebelumnya, dengan data asli
+                batas_bawah_std = []
+                for i in range(len(items)):
+                    net_req_jan_std = hitung_net_req(inv_awal[i], permintaan_jan_original[i], safety_stock_original[i])
+                    batas_bawah_std.append(net_req_jan_std)
+                
+                # Hitung batas atas standard
+                batas_atas_std = []
+                for i in range(len(items)):
+                    # Batas atas dengan N=n_param bulan ke depan
+                    total_demand_std = permintaan_jan_original[i]
+                    
+                    if n_param >= 2:
+                        total_demand_std += permintaan_feb[i]
+                        
+                    if n_param >= 3:
+                        total_demand_std += permintaan_mar[i]
+                    
+                    net_req_total_std = hitung_net_req(inv_awal[i], total_demand_std, safety_stock_original[i])
+                    batas_atas_std.append(net_req_total_std)
+                
+                # Alokasi famili standard
+                family_lb_std = {fam: 0 for fam in unique_families}
+                family_ub_std = {fam: 0 for fam in unique_families}
+                
+                for i, fam in enumerate(families):
+                    family_lb_std[fam] += batas_bawah_std[i]
+                    family_ub_std[fam] += batas_atas_std[i]
+                
+                # Alokasi kapasitas
+                remaining_capacity_std = prod_jan * 1000
+                family_alloc_std = {fam: 0 for fam in unique_families}
+                
+                for fam in priority_families:
+                    family_alloc_std[fam] = family_lb_std[fam]
+                    remaining_capacity_std -= family_lb_std[fam]
+                
+                for fam in priority_families:
+                    additional_alloc_std = min(remaining_capacity_std, family_ub_std[fam] - family_lb_std[fam])
+                    family_alloc_std[fam] += additional_alloc_std
+                    remaining_capacity_std -= additional_alloc_std
+                
+                # Alokasi ke item
+                item_alloc_std = {}
+                
+                for i, item in enumerate(items):
+                    fam = families[i]
+                    
+                    item_alloc_std[item] = batas_bawah_std[i]
+                    
+                    remaining_family_cap_std = family_alloc_std[fam] - sum([batas_bawah_std[j] for j, f in enumerate(families) if f == fam])
+                    
+                    if remaining_family_cap_std > 0:
+                        family_items_idx = [j for j, f in enumerate(families) if f == fam]
+                        family_konversi = [konversi[j] for j in family_items_idx]
+                        total_konversi = sum(family_konversi)
+                        
+                        item_konversi_proportion = konversi[i] / total_konversi
+                        item_additional_std = min(
+                            remaining_family_cap_std * item_konversi_proportion,
+                            batas_atas_std[i] - batas_bawah_std[i]
+                        )
+                        item_alloc_std[item] += item_additional_std
+                
+                # Hitung MPS standard dan inventori akhir
+                mps_januari_std = {}
+                inv_akhir_jan_std = {}
+                
+                for i, item in enumerate(items):
+                    mps_januari_std[item] = round(item_alloc_std[item])
+                    inv_akhir_jan_std[item] = inv_awal[i] + mps_januari_std[item] - permintaan_jan_original[i]
+                
+                # Safety stock terpenuhi standard
+                safety_stock_terpenuhi_std = {}
+                for i, item in enumerate(items):
+                    safety_stock_terpenuhi_std[item] = inv_akhir_jan_std[item] >= safety_stock_original[i]
+                
+                # Biaya setup standard
+                total_setup_cost_std = sum([setup_costs[fam] for fam in unique_families if sum([mps_januari_std[item] for i, item in enumerate(items) if families[i] == fam]) > 0])
+                
+                # Kebutuhan kapasitas standard
+                kebutuhan_kapasitas_std = sum([mps_januari_std[item] * konversi[i] for i, item in enumerate(items)])
+                
+                # Tabel perbandingan
+                comparison_data = []
+                for i, item in enumerate(items):
+                    comparison_data.append({
+                        'Item': item,
+                        'MPS Standard': mps_januari_std[item],
+                        f'MPS {metode_selected}': mps_januari[item],
+                        'Perbedaan': mps_januari[item] - mps_januari_std[item],
+                        'Inv. Akhir Standard': inv_akhir_jan_std[item],
+                        f'Inv. Akhir {metode_selected}': inv_akhir_jan[item],
+                        'SS Terpenuhi Standard': 'Ya' if safety_stock_terpenuhi_std[item] else 'Tidak',
+                        f'SS Terpenuhi {metode_selected}': 'Ya' if safety_stock_terpenuhi[item] else 'Tidak'
+                    })
+                
+                comparison_df = pd.DataFrame(comparison_data)
+                st.dataframe(comparison_df)
+                
+                # Metrik perbandingan
+                st.subheader("Metrik Perbandingan")
+                col1, col2 = st.columns(2)
+                col1.metric("Total Produksi Standard", f"{sum(mps_januari_std.values()):.1f} unit")
+                col2.metric("Total Produksi " + metode_selected, f"{sum(mps_januari.values()):.1f} unit")
+                
+                col1, col2 = st.columns(2)
+                col1.metric("Total Biaya Setup Standard", f"Rp {total_setup_cost_std} Miliar")
+                col2.metric("Total Biaya Setup " + metode_selected, f"Rp {total_setup_cost} Miliar")
+                
+                col1, col2 = st.columns(2)
+                col1.metric("Kebutuhan Kapasitas Standard", f"{kebutuhan_kapasitas_std:.2f} unit agregat")
+                col2.metric("Kebutuhan Kapasitas " + metode_selected, f"{kebutuhan_kapasitas:.2f} unit agregat")
+                
+                # Cek service level
+                items_safety_std = sum([1 for item in items if safety_stock_terpenuhi_std[item]])
+                items_safety = sum([1 for item in items if safety_stock_terpenuhi[item]])
+                
+                col1, col2 = st.columns(2)
+                col1.metric("Service Level Standard", f"{items_safety_std / len(items) * 100:.1f}%")
+                col2.metric("Service Level " + metode_selected, f"{items_safety / len(items) * 100:.1f}%")
+                
+                # Visualisasi perbandingan
+                st.subheader("Visualisasi Perbandingan MPS")
+                
+                # Bar chart untuk perbandingan MPS
+                fig, ax = plt.subplots(figsize=(12, 8))
+                
+                x = range(len(items))
+                width = 0.35
+                
+                bars1 = ax.bar([p - width/2 for p in x], [mps_januari_std[item] for item in items], width, label='MPS Standard')
+                bars2 = ax.bar([p + width/2 for p in x], [mps_januari[item] for item in items], width, label=f'MPS {metode_selected}')
+                
+                ax.set_xticks(x)
+                ax.set_xticklabels(items, rotation=45)
+                ax.set_title(f'Perbandingan MPS Standard vs {metode_selected}')
+                ax.set_ylabel('Jumlah Produksi')
+                ax.legend()
+                
+                st.pyplot(fig)
+            
+            # Tampilkan metrik ringkasan
+            st.subheader("Metrik Ringkasan")
+            col1, col2, col3 = st.columns(3)
+            col1.metric("Total Produksi", f"{sum(mps_januari.values()):.1f} unit")
+            col2.metric("Total Biaya Setup", f"Rp {total_setup_cost} Miliar")
+            col3.metric("Kebutuhan Kapasitas", f"{kebutuhan_kapasitas:.2f} unit agregat")
+            
+            # Visualisasi perbandingan inventory vs safety stock
+            st.subheader("Inventori Akhir vs Safety Stock")
+            
+            fig, ax = plt.subplots(figsize=(12, 6))
+            
+            x = range(len(items))
+            width = 0.35
+            
+            # Plot inventori akhir
+            bars1 = ax.bar([p - width/2 for p in x], [inv_akhir_jan[item] for item in items], width, color='blue', label='Inventori Akhir')
+            
+            # Plot safety stock
+            bars2 = ax.bar([p + width/2 for p in x], safety_stock, width, color='red', label='Safety Stock')
+            
+            # Tambahkan label nilai
+            for bar in bars1:
+                height = bar.get_height()
+                ax.text(bar.get_x() + bar.get_width()/2., height + 5, f'{int(height)}', ha='center')
+                
+            for bar in bars2:
+                height = bar.get_height()
+                ax.text(bar.get_x() + bar.get_width()/2., height + 5, f'{int(height)}', ha='center')
+            
+            ax.set_title('Inventori Akhir vs Safety Stock Januari 2025')
+            ax.set_ylabel('Jumlah')
+            ax.set_xticks(x)
+            ax.set_xticklabels(items, rotation=45)
+            ax.legend()
+            
+            st.pyplot(fig)
+            
+            # Interpretasi keseluruhan dan rekomendasi
+            st.subheader("Interpretasi Jadwal Produksi Induk")
+            with st.container():
+                if model:
+                    st.markdown(interpretasi_mps(model, hasil))
+                else:
+                    st.warning("API Key belum dimasukkan atau gagal terhubung.")
+
+# Enhanced interpretasi_mps function untuk penjelasan mengenai integrasi Winter's Method
+def interpretasi_mps(model, hasil):
+    """Interpretasi hasil MPS menggunakan API Gemini."""
+    if not model:
+        return "Interpretasi AI tidak tersedia."
+        
+    # Check which type of dictionary is being passed
+    metode = hasil.get('metode', 'Bitran Hax Standard')
+    metode_text = f"menggunakan {metode}"
+    
+    prompt = f"""
+    Saya telah mengembangkan Jadwal Produksi Induk (MPS) untuk LSP Bakery {metode_text}.
+    
+    Hasil analisis:
+    - MPS untuk bulan Januari: {str(hasil.get('mps_januari', {}))}
+    - Pemenuhan kebutuhan safety stock: {str(hasil.get('safety_stock_terpenuhi', {}))}
+    - Biaya setup: {hasil.get('setup_cost', 0)} miliar Rupiah
+    - Kebutuhan kapasitas: {hasil.get('kebutuhan_kapasitas', 0)} unit produksi
+    
+    Berikan interpretasi yang ringkas dan profesional dalam 5-7 poin utama dalam bahasa Indonesia.
+    Fokus pada:
+    - Alokasi produksi antar keluarga dan item produk
+    - Efisiensi dalam penggunaan sumber daya dan kapasitas
+    - Implikasi terhadap inventory management dan customer service level
+    - Keuntungan menggunakan pendekatan {metode} dibandingkan dengan metode standard
+    - Implikasi terhadap perencanaan produksi jangka panjang
+    """
+    
+    try:
+        response = model.generate_content(prompt)
+        return response.text
+    except Exception as e:
+        logging.error(f"Error menghasilkan interpretasi MPS: {e}")
+        return f"Error menghasilkan interpretasi: {e}"
+
     st.header("Masalah 4: Jadwal Produksi Induk (MPS)")
     
     # Fungsi interpretasi khusus untuk MPS
